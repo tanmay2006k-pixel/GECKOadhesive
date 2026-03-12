@@ -3,1233 +3,1034 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Gecko Adhesion Physics - Organic Paw Model</title>
+<title>Gecko Adhesion Physics — Desktop Lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@700;800;900&display=swap" rel="stylesheet">
 
 <style>
+/* ═══════════════════════════════════════════════
+   ROOT VARIABLES — switch dynamically via JS
+═══════════════════════════════════════════════ */
 :root {
-  --primary: #00ff88;
-  --primary-glow: rgba(0, 255, 136, 0.3);
-  --secondary: #00d4ff;
-  --secondary-glow: rgba(0, 212, 255, 0.3);
-  --danger: #ff4444;
-  --bg-dark: #0a0e27;
-  --bg-panel: rgba(10, 15, 30, 0.98);
-  --border: rgba(0, 255, 136, 0.2);
-  --text: #ffffff;
-  --text-dim: rgba(255, 255, 255, 0.7);
-  --text-muted: rgba(255, 255, 255, 0.5);
+  --state-hue: 145;          /* green=145, red=0 */
+  --accent: #00ff88;
+  --accent-glow: rgba(0,255,136,0.25);
+  --accent-border: rgba(0,255,136,0.22);
+  --accent-bg: rgba(0,255,136,0.06);
+  --accent-dim: rgba(0,255,136,0.45);
+  --danger: #ff4040;
+  --bg: #080c1e;
+  --panel-bg: rgba(8,12,30,0.98);
+  --text: #f0f4ff;
+  --text-dim: rgba(240,244,255,0.55);
+  --text-muted: rgba(240,244,255,0.28);
+  --border: rgba(255,255,255,0.07);
+  --seam: rgba(255,255,255,0.04);
 }
 
-* { 
-  margin: 0; 
-  padding: 0; 
-  box-sizing: border-box; 
+/* ─── ADHERED STATE ─── */
+body.adhered {
+  --accent: #00ff88;
+  --accent-glow: rgba(0,255,136,0.2);
+  --accent-border: rgba(0,255,136,0.25);
+  --accent-bg: rgba(0,255,136,0.06);
+  --accent-dim: rgba(0,255,136,0.45);
 }
+
+/* ─── DETACHING STATE ─── */
+body.detaching {
+  --accent: #ff4040;
+  --accent-glow: rgba(255,64,64,0.2);
+  --accent-border: rgba(255,64,64,0.25);
+  --accent-bg: rgba(255,64,64,0.06);
+  --accent-dim: rgba(255,64,64,0.45);
+}
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  font-family: 'JetBrains Mono', monospace;
-  background: radial-gradient(ellipse at top, #1a1f3a, #0a0e27);
+  font-family: 'Space Mono', monospace;
+  background: var(--bg);
   color: var(--text);
+  height: 100vh;
+  width: 100vw;
   overflow: hidden;
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  transition: background 0.5s;
 }
 
-/* ============ PANEL SYSTEM ============ */
-.control-panel, .info-panel {
-  position: absolute;
-  background: var(--bg-panel);
-  backdrop-filter: blur(20px) saturate(180%);
-  border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 
-              0 0 0 1px var(--border),
-              inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  z-index: 100;
-  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s;
-}
-
-.control-panel {
-  left: 30px;
-  top: 100px;
-  width: 400px;
-  max-height: calc(100vh - 130px);
-  overflow: hidden;
-}
-
-.control-panel.collapsed {
-  transform: translateX(-430px);
-  opacity: 0;
-  pointer-events: none;
-}
-
-.info-panel {
-  right: 30px;
-  top: 100px;
-  width: 350px;
-  max-height: calc(100vh - 130px);
-  overflow: hidden;
-}
-
-.info-panel.collapsed {
-  transform: translateX(380px);
-  opacity: 0;
-  pointer-events: none;
-}
-
-/* ============ PANEL HEADER ============ */
-.panel-header {
-  padding: 20px 25px;
-  background: linear-gradient(135deg, rgba(0, 255, 136, 0.15), rgba(0, 212, 255, 0.15));
+/* ═══════════════════════════════════════════════
+   TOP NAV BAR
+═══════════════════════════════════════════════ */
+.topbar {
+  height: 54px;
+  min-height: 54px;
+  background: rgba(6,9,22,0.97);
   border-bottom: 1px solid var(--border);
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  gap: 20px;
+  z-index: 200;
+  transition: border-color 0.5s;
+  box-shadow: 0 1px 0 var(--accent-border);
 }
 
-.panel-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 18px;
+.topbar-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.brand-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 17px;
   font-weight: 900;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
+  color: var(--accent);
+  text-shadow: 0 0 18px var(--accent-glow);
+  transition: color 0.5s, text-shadow 0.5s;
 }
 
-/* ============ PANEL CONTENT ============ */
-.panel-content {
-  padding: 25px 30px;
-  max-height: calc(100vh - 230px);
-  overflow-y: auto;
-  overflow-x: hidden;
+.brand-sub {
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
 }
 
-.panel-content::-webkit-scrollbar {
-  width: 6px;
-}
-
-.panel-content::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 3px;
-}
-
-.panel-content::-webkit-scrollbar-thumb {
-  background: var(--primary);
-  border-radius: 3px;
-}
-
-/* ============ SECTIONS ============ */
-.section {
-  margin-bottom: 30px;
-  padding-bottom: 25px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.section:last-child {
-  border-bottom: none;
-}
-
-.section-header {
+/* STATE INDICATOR — top bar center */
+.state-indicator-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 18px;
+  gap: 12px;
+  padding: 8px 22px;
+  border-radius: 30px;
+  border: 1.5px solid var(--accent-border);
+  background: var(--accent-bg);
+  transition: all 0.4s;
 }
 
-.section-title {
-  font-family: 'Orbitron', sans-serif;
+.state-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent-glow);
+  animation: blink 1.8s ease-in-out infinite;
+  transition: background 0.4s, box-shadow 0.4s;
+}
+
+@keyframes blink {
+  0%,100% { opacity:1; transform:scale(1); }
+  50% { opacity:0.5; transform:scale(0.8); }
+}
+
+.state-label {
+  font-family: 'Syne', sans-serif;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: var(--accent);
   text-transform: uppercase;
-  letter-spacing: 2px;
-  color: var(--primary);
-  text-shadow: 0 0 10px var(--primary-glow);
+  transition: color 0.4s;
+}
+
+.state-eff {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.top-btn {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.25s;
+  white-space: nowrap;
+}
+
+.top-btn:hover {
+  background: var(--accent-bg);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+/* ═══════════════════════════════════════════════
+   MAIN 3-COLUMN LAYOUT
+═══════════════════════════════════════════════ */
+.workspace {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 320px 1fr 300px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════
+   SIDE PANELS
+═══════════════════════════════════════════════ */
+.side-panel {
+  background: var(--panel-bg);
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  transition: border-color 0.5s;
+}
+
+.side-panel.right {
+  border-right: none;
+  border-left: 1px solid var(--border);
+}
+
+.side-panel::-webkit-scrollbar { width: 4px; }
+.side-panel::-webkit-scrollbar-track { background: transparent; }
+.side-panel::-webkit-scrollbar-thumb {
+  background: var(--accent-dim);
+  border-radius: 2px;
+}
+
+/* Panel top label */
+.panel-tag {
+  padding: 14px 20px 10px;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--seam);
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+}
+
+/* ─── Section header ─── */
+.section {
+  padding: 18px 20px 8px;
+  border-bottom: 1px solid var(--seam);
+}
+
+.section:last-child { border-bottom: none; }
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .section-icon {
-  font-size: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  transition: all 0.5s;
 }
 
-/* ============ CONTROLS ============ */
-.control-group {
-  margin-bottom: 20px;
+.section-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--accent);
+  text-transform: uppercase;
+  transition: color 0.5s;
 }
 
-.control-label {
+/* ─── Slider controls ─── */
+.control-row {
+  margin-bottom: 18px;
+}
+
+.ctrl-header {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 10px;
-  font-size: 13px;
-  color: var(--text-dim);
+  margin-bottom: 8px;
 }
 
-.control-name {
-  font-weight: 600;
-}
-
-.control-value {
-  font-family: 'JetBrains Mono', monospace;
-  color: var(--primary);
-  font-weight: 700;
-  font-size: 14px;
-  text-shadow: 0 0 8px var(--primary-glow);
-}
-
-.control-unit {
+.ctrl-name {
   font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.3px;
+}
+
+.ctrl-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  transition: color 0.4s;
+}
+
+.ctrl-unit {
+  font-size: 9px;
   color: var(--text-muted);
   margin-left: 3px;
 }
 
-/* ============ SLIDERS ============ */
+/* ─── Custom slider ─── */
 input[type="range"] {
-  width: 100%;
-  height: 8px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.08);
-  outline: none;
   -webkit-appearance: none;
   appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.08);
+  outline: none;
   cursor: pointer;
-  margin: 10px 0;
-}
-
-input[type="range"]::-webkit-slider-track {
-  height: 8px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.08);
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  appearance: none;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  background: var(--accent);
   cursor: grab;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.3),
-              0 0 20px var(--primary-glow),
-              0 4px 15px rgba(0, 0, 0, 0.3);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 12px var(--accent-glow);
+  transition: background 0.4s, box-shadow 0.4s, transform 0.15s;
 }
 
-input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.2);
-  box-shadow: 0 0 0 4px rgba(0, 255, 136, 0.2),
-              0 0 30px var(--primary-glow);
-}
-
-input[type="range"]::-webkit-slider-thumb:active {
-  cursor: grabbing;
-}
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.25); }
+input[type="range"]::-webkit-slider-thumb:active { cursor: grabbing; }
 
 input[type="range"]::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  cursor: grab;
-  border: none;
-  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.3),
-              0 0 20px var(--primary-glow);
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--accent); cursor: grab; border: none;
+  box-shadow: 0 0 12px var(--accent-glow);
 }
 
-/* ============ TOGGLE SWITCHES ============ */
-.toggle-group {
+/* ─── Toggle rows ─── */
+.toggle-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 15px;
-  background: rgba(0, 255, 136, 0.05);
-  border-radius: 12px;
-  margin-bottom: 12px;
-  border: 1px solid rgba(0, 255, 136, 0.1);
-  transition: all 0.3s;
-}
-
-.toggle-group:hover {
-  background: rgba(0, 255, 136, 0.08);
-  border-color: rgba(0, 255, 136, 0.2);
-}
-
-.toggle-label {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-dim);
-}
-
-.toggle-switch {
-  position: relative;
-  width: 54px;
-  height: 28px;
-}
-
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider-toggle {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(255, 255, 255, 0.1);
-  transition: 0.3s;
-  border-radius: 28px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.slider-toggle:before {
-  position: absolute;
-  content: "";
-  height: 20px;
-  width: 20px;
-  left: 3px;
-  bottom: 3px;
-  background: white;
-  transition: 0.3s;
-  border-radius: 50%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-}
-
-input:checked + .slider-toggle {
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  border-color: var(--primary);
-  box-shadow: 0 0 15px var(--primary-glow);
-}
-
-input:checked + .slider-toggle:before {
-  transform: translateX(26px);
-}
-
-/* ============ METRICS ============ */
-.metrics-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 15px;
-}
-
-.metric-card {
-  background: linear-gradient(135deg, rgba(0, 255, 136, 0.08), rgba(0, 212, 255, 0.08));
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 16px;
-  transition: all 0.3s;
-  position: relative;
-  overflow: hidden;
-}
-
-.metric-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--primary), var(--secondary));
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.metric-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 25px rgba(0, 255, 136, 0.2);
-  border-color: var(--primary);
-}
-
-.metric-card:hover::before {
-  opacity: 1;
-}
-
-.metric-card.full-width {
-  grid-column: 1 / -1;
-}
-
-.metric-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-  font-weight: 600;
-}
-
-.metric-value {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--primary);
-  text-shadow: 0 0 10px var(--primary-glow);
-  line-height: 1.2;
-}
-
-.metric-value .unit {
-  font-size: 14px;
-  color: var(--text-muted);
-  margin-left: 4px;
-  font-weight: 500;
-}
-
-/* ============ STATE BADGE ============ */
-.state-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  border-radius: 25px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  animation: pulse 2s infinite;
-}
-
-.state-badge.adhered {
-  background: rgba(0, 255, 136, 0.2);
-  color: var(--primary);
-  border: 2px solid var(--primary);
-  box-shadow: 0 0 20px var(--primary-glow);
-}
-
-.state-badge.detaching {
-  background: rgba(255, 68, 68, 0.2);
-  color: var(--danger);
-  border: 2px solid var(--danger);
-  box-shadow: 0 0 20px rgba(255, 68, 68, 0.3);
-}
-
-.state-indicator {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: currentColor;
-  box-shadow: 0 0 10px currentColor;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
-}
-
-/* ============ BUTTONS ============ */
-.btn {
-  width: 100%;
-  padding: 16px;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  border: none;
-  border-radius: 12px;
-  color: var(--bg-dark);
-  font-family: 'Orbitron', sans-serif;
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.3s;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  box-shadow: 0 4px 15px rgba(0, 255, 136, 0.3);
-  margin-bottom: 10px;
-}
-
-.btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 255, 136, 0.5);
-}
-
-.btn:active {
-  transform: translateY(0);
-}
-
-/* ============ INFO ITEMS ============ */
-.info-item {
-  margin-bottom: 18px;
-  padding: 15px;
-  background: rgba(0, 212, 255, 0.05);
-  border-left: 3px solid var(--secondary);
-  border-radius: 8px;
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.info-item strong {
-  color: var(--secondary);
-  display: block;
-  margin-bottom: 5px;
-  font-size: 13px;
-}
-
-.reference {
-  font-size: 10px;
-  color: var(--text-muted);
-  font-style: italic;
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* ============ TOGGLE BUTTONS (ALWAYS VISIBLE) ============ */
-.toggle-buttons-container {
-  position: fixed;
-  top: 30px;
-  left: 30px;
-  right: 30px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  z-index: 101;
-  pointer-events: none;
-}
-
-.toggle-btn-group {
-  display: flex;
-  gap: 12px;
-  pointer-events: all;
-  align-items: center;
-}
-
-.toggle-floating-btn {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary), var(--secondary));
-  border: none;
-  color: var(--bg-dark);
-  font-size: 28px;
-  cursor: pointer;
-  box-shadow: 0 8px 25px rgba(0, 255, 136, 0.4);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.toggle-floating-btn:hover {
-  transform: scale(1.1);
-  box-shadow: 0 12px 35px rgba(0, 255, 136, 0.6);
-}
-
-.toggle-floating-btn:active {
-  transform: scale(1.05);
-}
-
-.toggle-floating-btn.active {
-  background: linear-gradient(135deg, var(--secondary), var(--primary));
-  box-shadow: 0 8px 25px rgba(0, 212, 255, 0.4);
-}
-
-/* ============ HOME BUTTON ============ */
-.home-btn {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: rgba(10, 14, 39, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.55);
-  font-size: 24px;
-  cursor: pointer;
-  backdrop-filter: blur(12px);
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4),
-              inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  pointer-events: all;
-  text-decoration: none;
-}
-
-.home-btn:hover {
-  background: rgba(20, 26, 58, 0.95);
-  border-color: rgba(0, 255, 136, 0.3);
-  color: rgba(255, 255, 255, 0.85);
-  transform: scale(1.07);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5),
-              0 0 0 1px rgba(0, 255, 136, 0.2);
-}
-
-.home-btn:active {
-  transform: scale(1.02);
-}
-
-/* ============ PRINT BUTTON ============ */
-.print-btn {
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background: rgba(10, 14, 39, 0.85);
-  border: 1px solid rgba(0, 212, 255, 0.2);
-  color: rgba(0, 212, 255, 0.7);
-  font-size: 24px;
-  cursor: pointer;
-  backdrop-filter: blur(12px);
-  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4),
-              inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  pointer-events: all;
-  position: relative;
-  overflow: hidden;
-}
-
-.print-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: radial-gradient(circle at 50% 50%, rgba(0, 212, 255, 0.12), transparent 70%);
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-
-.print-btn:hover {
-  background: rgba(20, 26, 58, 0.95);
-  border-color: rgba(0, 212, 255, 0.5);
-  color: rgba(0, 212, 255, 1);
-  transform: scale(1.07);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.5),
-              0 0 20px rgba(0, 212, 255, 0.2);
-}
-
-.print-btn::before {
-  opacity: 1;
-}
-
-.print-btn:active {
-  transform: scale(1.02);
-}
-
-.print-btn.printing {
-  animation: printPulse 0.6s ease-in-out;
-}
-
-@keyframes printPulse {
-  0% { transform: scale(1); box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4); }
-  50% { transform: scale(1.15); box-shadow: 0 8px 30px rgba(0, 212, 255, 0.4); }
-  100% { transform: scale(1); }
-}
-
-/* ============ CENTER TITLE BAR ============ */
-.center-title {
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.center-title-text {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 3px;
-  color: rgba(255,255,255,0.18);
-  text-transform: uppercase;
-}
-
-.center-title-sub {
-  font-size: 10px;
-  letter-spacing: 2px;
-  color: rgba(0, 255, 136, 0.25);
-  font-family: 'JetBrains Mono', monospace;
-}
-
-/* ============ CONTROLS HINT ============ */
-.controls-hint {
-  position: fixed;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--bg-panel);
-  backdrop-filter: blur(20px);
-  border-radius: 50px;
-  padding: 15px 30px;
-  display: flex;
-  gap: 30px;
-  border: 1px solid var(--border);
-  z-index: 90;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-}
-
-.hint-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--seam);
   font-size: 11px;
   color: var(--text-dim);
 }
 
-.hint-key {
-  background: rgba(0, 255, 136, 0.15);
-  padding: 5px 12px;
-  border-radius: 6px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--primary);
-  border: 1px solid var(--border);
-  font-weight: 600;
+.toggle-row:last-child { border-bottom: none; }
+
+.sw {
+  position: relative; width: 44px; height: 24px;
 }
 
-/* ============ CANVAS ============ */
+.sw input { opacity:0; width:0; height:0; }
+
+.sw-track {
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,0.1);
+  border-radius: 12px;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.1);
+  transition: 0.3s;
+}
+
+.sw-track::after {
+  content: '';
+  position: absolute;
+  width: 17px; height: 17px;
+  border-radius: 50%;
+  background: white;
+  left: 3px; top: 3px;
+  transition: 0.3s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+.sw input:checked + .sw-track {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.sw input:checked + .sw-track::after {
+  transform: translateX(20px);
+}
+
+/* ═══════════════════════════════════════════════
+   METRICS PANEL (RIGHT)
+═══════════════════════════════════════════════ */
+
+/* Big live metric card */
+.metric-hero {
+  margin: 0 20px 12px;
+  padding: 18px 20px;
+  background: var(--accent-bg);
+  border: 1.5px solid var(--accent-border);
+  border-radius: 12px;
+  transition: all 0.4s;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-hero::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+  transition: background 0.4s;
+}
+
+.metric-hero-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  font-family: 'Syne', sans-serif;
+}
+
+.metric-hero-val {
+  font-family: 'Syne', sans-serif;
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--accent);
+  text-shadow: 0 0 30px var(--accent-glow);
+  transition: color 0.4s, text-shadow 0.4s;
+}
+
+.metric-hero-unit {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 400;
+  font-family: 'Space Mono', monospace;
+  margin-left: 4px;
+}
+
+.metric-hero-sub {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* Small metric grid */
+.metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 0 20px 18px;
+}
+
+.metric-cell {
+  padding: 12px 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  transition: border-color 0.4s;
+}
+
+.metric-cell:hover {
+  border-color: var(--accent-border);
+  background: var(--accent-bg);
+}
+
+.mc-label {
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  font-family: 'Syne', sans-serif;
+}
+
+.mc-val {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--accent);
+  transition: color 0.4s;
+  line-height: 1;
+}
+
+.mc-unit {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: 'Space Mono', monospace;
+  font-weight: 400;
+  margin-left: 2px;
+}
+
+/* Efficiency bar */
+.eff-bar-wrap {
+  margin: 0 20px 18px;
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+}
+
+.eff-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 9px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+  font-family: 'Syne', sans-serif;
+}
+
+.eff-bar-pct {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 11px;
+  transition: color 0.4s;
+}
+
+.eff-track {
+  height: 6px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.eff-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--accent), rgba(0,212,255,0.8));
+  transition: width 0.4s cubic-bezier(0.4,0,0.2,1), background 0.4s;
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+/* Factor breakdown */
+.factors {
+  padding: 0 20px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.factor-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+}
+
+.factor-name {
+  width: 78px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.factor-track {
+  flex: 1;
+  height: 4px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.factor-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.4s, background 0.4s;
+}
+
+.factor-pct {
+  width: 36px;
+  text-align: right;
+  color: var(--text-dim);
+  font-size: 9px;
+}
+
+/* ═══════════════════════════════════════════════
+   CANVAS AREA (CENTER)
+═══════════════════════════════════════════════ */
+.canvas-wrap {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(ellipse at top, #131c42, #080c1e);
+}
+
 #canvas-container {
   width: 100%;
-  height: 100vh;
-  cursor: grab;
+  height: 100%;
 }
 
-#canvas-container:active {
-  cursor: grabbing;
+#canvas-container canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
 }
 
-/* ============ LOADING ============ */
-.loading {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--bg-dark);
+/* State overlay glow on canvas edges */
+.canvas-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 0;
+  transition: box-shadow 0.5s;
+  box-shadow: inset 0 0 60px var(--accent-glow);
+}
+
+/* Controls hint overlay */
+.cam-hint {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 20px;
+  pointer-events: none;
+  opacity: 0.45;
+}
+
+.cam-hint-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.cam-hint-key {
+  padding: 3px 8px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 4px;
+  font-size: 8px;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* ═══════════════════════════════════════════════
+   LOADING
+═══════════════════════════════════════════════ */
+.loading-screen {
+  position: fixed; inset: 0;
+  background: #080c1e;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   z-index: 1000;
+  gap: 20px;
 }
 
-.loading-spinner {
-  width: 60px;
-  height: 60px;
-  border: 4px solid rgba(0, 255, 136, 0.2);
-  border-top-color: var(--primary);
+.loading-ring {
+  width: 56px; height: 56px;
+  border: 3px solid rgba(0,255,136,0.15);
+  border-top-color: #00ff88;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 20px;
-  box-shadow: 0 0 30px var(--primary-glow);
+  animation: spin 0.9s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-txt {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  color: #00ff88;
+  text-shadow: 0 0 20px rgba(0,255,136,0.4);
 }
 
-.loading-text {
-  font-family: 'Orbitron', sans-serif;
-  font-size: 18px;
-  color: var(--primary);
-  text-shadow: 0 0 20px var(--primary-glow);
+/* ═══════════════════════════════════════════════
+   RESET BUTTON
+═══════════════════════════════════════════════ */
+.reset-btn {
+  margin: 4px 20px 20px;
+  width: calc(100% - 40px);
+  padding: 12px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 9px;
+  color: var(--accent);
+  font-family: 'Syne', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.25s;
 }
 
-/* ============ PRINT STYLES ============ */
-@media print {
-  body * { visibility: hidden !important; }
-  #printFrame, #printFrame * { visibility: visible !important; }
-  #printFrame {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    z-index: 99999 !important;
-  }
+.reset-btn:hover {
+  background: var(--accent);
+  color: #080c1e;
+  box-shadow: 0 0 20px var(--accent-glow);
 }
 
-/* ============ RESPONSIVE ============ */
-@media (max-width: 1024px) {
-  .control-panel, .info-panel {
-    width: 350px;
-  }
-  
-  .controls-hint {
-    display: none;
-  }
-}
-
-@media (max-width: 768px) {
-  .control-panel {
-    width: calc(100% - 40px);
-    left: 20px;
-    right: 20px;
-  }
-  
-  .info-panel {
-    width: calc(100% - 40px);
-  }
-  
-  .metrics-grid {
-    grid-template-columns: 1fr;
-  }
-  
-  .toggle-buttons-container {
-    left: 20px;
-    right: 20px;
-  }
-  
-  .toggle-floating-btn, .home-btn, .print-btn {
-    width: 50px;
-    height: 50px;
-    font-size: 22px;
-  }
-
-  .center-title-text { font-size: 11px; }
+/* Divider label */
+.divider-label {
+  padding: 10px 20px 6px;
+  font-size: 8px;
+  letter-spacing: 2.5px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-family: 'Syne', sans-serif;
 }
 </style>
 </head>
+<body class="adhered">
 
-<body>
-
-<div id="loading" class="loading">
-  <div class="loading-spinner"></div>
-  <div class="loading-text">INITIALIZING GECKO PHYSICS ENGINE</div>
+<!-- LOADING -->
+<div class="loading-screen" id="loadingScreen">
+  <div class="loading-ring"></div>
+  <div class="loading-txt">INITIALIZING GECKO ENGINE</div>
 </div>
 
-<!-- ============ TOP NAV BAR ============ -->
-<div class="toggle-buttons-container">
-
-  <!-- LEFT: Home + Parameters -->
-  <div class="toggle-btn-group">
-   <a href="index.html" class="home-btn" title="Home" onclick="goHome(); return false;">🏠</a>
-    <button class="toggle-floating-btn active" id="btnParams" onclick="togglePanel('control')" title="Parameters">
-      ⚙️
-    </button>
+<!-- ══════════════ TOP BAR ══════════════ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="brand-name">GECKO ADHESION</span>
+    <span class="brand-sub">Van der Waals · Physics Lab</span>
   </div>
 
-  <!-- CENTER: Subtle title -->
-  <div class="center-title">
-    <span class="center-title-text">Gecko Adhesion Physics</span>
-    <span class="center-title-sub">van der Waals · Organic Paw Model</span>
+  <div class="state-indicator-bar" id="stateBarGlobal">
+    <div class="state-dot" id="stateDot"></div>
+    <span class="state-label" id="stateLabelBar">ADHERED</span>
+    <span class="state-eff" id="stateEffBar">eff. 100%</span>
   </div>
 
-  <!-- RIGHT: Print + References -->
-  <div class="toggle-btn-group">
-    <button class="print-btn" id="printBtn" title="Save as PDF" onclick="printReport()">🖨️</button>
-    <button class="toggle-floating-btn" id="btnInfo" onclick="togglePanel('info')" title="References">
-      ℹ️
-    </button>
+  <div class="topbar-actions">
+    <button class="top-btn" onclick="resetSimulation()">↺ Reset</button>
+    <button class="top-btn" onclick="printReport()">⎙ PDF Report</button>
   </div>
-
 </div>
 
-<div class="control-panel" id="controlPanel">
-  <div class="panel-header">
-    <div class="panel-title">PARAMETERS</div>
-  </div>
-  
-  <div class="panel-content">
+<!-- ══════════════ WORKSPACE ══════════════ -->
+<div class="workspace">
+
+  <!-- ══════════ LEFT: PARAMETERS ══════════ -->
+  <div class="side-panel">
+    <div class="panel-tag">Parameters</div>
+
+    <!-- ─ Biological ─ -->
     <div class="section">
-      <div class="section-header">
-        <span class="section-icon">🧬</span>
-        <span class="section-title">Biological Parameters</span>
+      <div class="section-head">
+        <div class="section-icon">🧬</div>
+        <span class="section-title">Biological</span>
       </div>
-      
-      <div class="control-group">
-        <div class="control-label">
-          <span class="control-name">Setae Density</span>
-          <span class="control-value">
-            <span id="densityVal">14,400</span>
-            <span class="control-unit">per mm²</span>
-          </span>
+
+      <div class="control-row">
+        <div class="ctrl-header">
+          <span class="ctrl-name">Setae Density</span>
+          <span><span class="ctrl-val" id="densityVal">14,400</span><span class="ctrl-unit">/ mm²</span></span>
         </div>
         <input type="range" id="density" min="5000" max="20000" step="100" value="14400">
       </div>
 
-      <div class="control-group">
-        <div class="control-label">
-          <span class="control-name">Spatulae per Seta</span>
-          <span class="control-value">
-            <span id="spatulaeVal">100</span>
-            <span class="control-unit">branches</span>
-          </span>
+      <div class="control-row">
+        <div class="ctrl-header">
+          <span class="ctrl-name">Spatulae per Seta</span>
+          <span><span class="ctrl-val" id="spatulaeVal">100</span><span class="ctrl-unit">branches</span></span>
         </div>
         <input type="range" id="spatulae" min="50" max="1000" step="50" value="100">
       </div>
 
-      <div class="control-group">
-        <div class="control-label">
-          <span class="control-name">Lamellae Count</span>
-          <span class="control-value">
-            <span id="lamellaeVal">18</span>
-            <span class="control-unit">ridges</span>
-          </span>
+      <div class="control-row">
+        <div class="ctrl-header">
+          <span class="ctrl-name">Lamellae Count</span>
+          <span><span class="ctrl-val" id="lamellaeVal">18</span><span class="ctrl-unit">ridges</span></span>
         </div>
         <input type="range" id="lamellae" min="10" max="25" step="1" value="18">
       </div>
 
-      <div class="control-group">
-        <div class="control-label">
-          <span class="control-name">Toe Pad Area</span>
-          <span class="control-value">
-            <span id="padAreaVal">100</span>
-            <span class="control-unit">mm²</span>
-          </span>
+      <div class="control-row">
+        <div class="ctrl-header">
+          <span class="ctrl-name">Toe Pad Area</span>
+          <span><span class="ctrl-val" id="padAreaVal">100</span><span class="ctrl-unit">mm²</span></span>
         </div>
         <input type="range" id="padArea" min="50" max="200" step="5" value="100">
       </div>
     </div>
 
+    <!-- ─ Physics ─ -->
     <div class="section">
-      <div class="section-header">
-        <span class="section-icon">⚛️</span>
-        <span class="section-title">Physics Parameters</span>
+      <div class="section-head">
+        <div class="section-icon">⚛️</div>
+        <span class="section-title">Physics</span>
       </div>
 
-      <div class="control-group">
-        <div class="control-label">
-          <span class="control-name">Contact Angle</span>
-          <span class="control-value">
-            <span id="angleVal">30</span>
-            <span class="control-unit">degrees</span>
-          </span>
+      <div class="control-row">
+        <div class="ctrl-header">
+          <span class="ctrl-name">Contact Angle</span>
+          <span><span class="ctrl-val" id="angleVal">30</span><span class="ctrl-unit">°</span></span>
         </div>
         <input type="range" id="angle" min="0" max="90" step="1" value="30">
       </div>
 
-      <div class="control-group">
-        <div class="control-label">
-          <span class="control-name">Separation Distance</span>
-          <span class="control-value">
-            <span id="distanceVal">0.30</span>
-            <span class="control-unit">nm</span>
-          </span>
+      <div class="control-row">
+        <div class="ctrl-header">
+          <span class="ctrl-name">Separation Distance</span>
+          <span><span class="ctrl-val" id="distanceVal">0.30</span><span class="ctrl-unit">nm</span></span>
         </div>
         <input type="range" id="distance" min="0.1" max="2.0" step="0.05" value="0.30">
       </div>
 
-      <div class="control-group">
-        <div class="control-label">
-          <span class="control-name">Hamaker Constant</span>
-          <span class="control-value">
-            <span id="hamakerVal">5.0</span>
-            <span class="control-unit">× 10⁻²⁰ J</span>
-          </span>
+      <div class="control-row">
+        <div class="ctrl-header">
+          <span class="ctrl-name">Hamaker Constant</span>
+          <span><span class="ctrl-val" id="hamakerVal">5.0</span><span class="ctrl-unit">×10⁻²⁰ J</span></span>
         </div>
         <input type="range" id="hamaker" min="1" max="10" step="0.5" value="5.0">
       </div>
 
-      <div class="control-group">
-        <div class="control-label">
-          <span class="control-name">Surface Roughness</span>
-          <span class="control-value">
-            <span id="roughnessVal">Smooth</span>
-          </span>
+      <div class="control-row">
+        <div class="ctrl-header">
+          <span class="ctrl-name">Surface Roughness</span>
+          <span class="ctrl-val" id="roughnessVal">Smooth</span>
         </div>
         <input type="range" id="roughness" min="1" max="5" step="1" value="1">
       </div>
 
-      <div class="control-group">
-        <div class="control-label">
-          <span class="control-name">Contact Efficiency</span>
-          <span class="control-value">
-            <span id="efficiencyVal">5.0</span>
-            <span class="control-unit">%</span>
-          </span>
+      <div class="control-row">
+        <div class="ctrl-header">
+          <span class="ctrl-name">Contact Efficiency</span>
+          <span><span class="ctrl-val" id="efficiencyVal">5.0</span><span class="ctrl-unit">%</span></span>
         </div>
         <input type="range" id="efficiency" min="1" max="20" step="1" value="5">
       </div>
     </div>
 
+    <!-- ─ Visualization Toggles ─ -->
     <div class="section">
-      <div class="section-header">
-        <span class="section-icon">👁️</span>
+      <div class="section-head">
+        <div class="section-icon">👁️</div>
         <span class="section-title">Visualization</span>
       </div>
 
-      <div class="toggle-group">
-        <span class="toggle-label">Show Grid</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="toggleGrid" checked>
-          <span class="slider-toggle"></span>
-        </label>
+      <div class="toggle-row">
+        <span>Show Grid</span>
+        <label class="sw"><input type="checkbox" id="toggleGrid" checked><span class="sw-track"></span></label>
       </div>
-
-      <div class="toggle-group">
-        <span class="toggle-label">Show Setae</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="toggleSetae" checked>
-          <span class="slider-toggle"></span>
-        </label>
+      <div class="toggle-row">
+        <span>Show Setae</span>
+        <label class="sw"><input type="checkbox" id="toggleSetae" checked><span class="sw-track"></span></label>
       </div>
-
-      <div class="toggle-group">
-        <span class="toggle-label">Show Lamellae</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="toggleLamellae" checked>
-          <span class="slider-toggle"></span>
-        </label>
+      <div class="toggle-row">
+        <span>Show Lamellae</span>
+        <label class="sw"><input type="checkbox" id="toggleLamellae" checked><span class="sw-track"></span></label>
       </div>
-
-      <div class="toggle-group">
-        <span class="toggle-label">Auto Rotate</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="toggleRotate">
-          <span class="slider-toggle"></span>
-        </label>
+      <div class="toggle-row">
+        <span>Show Forces</span>
+        <label class="sw"><input type="checkbox" id="toggleForces" checked><span class="sw-track"></span></label>
       </div>
-
-      <div class="toggle-group">
-        <span class="toggle-label">Show Forces</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="toggleForces" checked>
-          <span class="slider-toggle"></span>
-        </label>
+      <div class="toggle-row">
+        <span>Auto Rotate</span>
+        <label class="sw"><input type="checkbox" id="toggleRotate"><span class="sw-track"></span></label>
       </div>
     </div>
 
-    <div class="section">
-      <div class="section-header">
-        <span class="section-icon">📊</span>
-        <span class="section-title">Adhesion Metrics</span>
-      </div>
-
-      <div class="metrics-grid">
-        <div class="metric-card">
-          <div class="metric-label">Spatula Force</div>
-          <div class="metric-value" id="spatulaForce">
-            0.00 <span class="unit">nN</span>
-          </div>
-        </div>
-
-        <div class="metric-card">
-          <div class="metric-label">Seta Force</div>
-          <div class="metric-value" id="setaForce">
-            0.00 <span class="unit">μN</span>
-          </div>
-        </div>
-
-        <div class="metric-card">
-          <div class="metric-label">Total Force</div>
-          <div class="metric-value" id="totalForce">
-            0.00 <span class="unit">N</span>
-          </div>
-        </div>
-
-        <div class="metric-card">
-          <div class="metric-label">Contact Area</div>
-          <div class="metric-value" id="contactArea">
-            0.00 <span class="unit">mm²</span>
-          </div>
-        </div>
-
-        <div class="metric-card full-width">
-          <div class="metric-label">Load Capacity</div>
-          <div class="metric-value" id="loadCapacity">
-            0.000 <span class="unit">kg</span>
-          </div>
-        </div>
-
-        <div class="metric-card full-width">
-          <div class="metric-label">Adhesion State</div>
-          <div id="stateDisplay"></div>
-        </div>
-      </div>
-    </div>
-
-    <button class="btn" onclick="resetSimulation()">🔄 RESET TO DEFAULTS</button>
+    <button class="reset-btn" onclick="resetSimulation()">↺ Reset to Defaults</button>
   </div>
-</div>
 
-<div class="info-panel collapsed" id="infoPanel">
-  <div class="panel-header">
-    <div class="panel-title">SCIENTIFIC REFERENCES</div>
-  </div>
-  
-  <div class="panel-content">
-    <div class="info-item">
-      <strong>Van der Waals Forces</strong>
-      Intermolecular attractive forces between spatula tips and surface. Formula: F = (A·H)/(6πd³) where A is contact area (~40,000 nm²), H is Hamaker constant (~5×10⁻²⁰ J), d is separation distance.
-      <div class="reference">Autumn et al., Nature 405:681-685, 2000</div>
-    </div>
-
-    <div class="info-item">
-      <strong>Seta Structure</strong>
-      Each seta is 5 μm diameter, 110 μm long, containing 100-1000 spatulae. Spatulae are 200 nm wide with triangular tips. Density: 14,400 setae/mm².
-      <div class="reference">Autumn et al., PNAS 99:12252-12256, 2002</div>
-    </div>
-
-    <div class="info-item">
-      <strong>Adhesion Force</strong>
-      Single seta: 194±25 μN perpendicular, 40.6 μN parallel. Requires angles <30° for maximum adhesion. Detachment via peeling at >40°.
-      <div class="reference">Autumn et al., Nature 405:681-685, 2000</div>
-    </div>
-
-    <div class="info-item">
-      <strong>Contact Mechanics</strong>
-      Optimal separation: 0.2-0.6 nm. Self-cleaning through contact mechanics. Only ~5% of spatulae make simultaneous contact.
-      <div class="reference">Hansen & Autumn, PNAS 102:385-389, 2005</div>
-    </div>
-
-    <div class="info-item">
-      <strong>Spatula Contact</strong>
-      Individual spatula force: ~10 nN. Contact area per spatula: 200 nm × 200 nm. Purely physical adhesion (van der Waals).
-      <div class="reference">Huber et al., PNAS 102:16293-16296, 2005</div>
-    </div>
-
-    <div class="info-item">
-      <strong>Whole Gecko</strong>
-      Full gecko (4 feet × 5 toes × ~100 mm²/pad = 2000 mm²). Theoretical max: ~1440 N. Actual: ~133 N with safety factors.
-      <div class="reference">Irschick et al., Biol J Linn Soc 59:21-35, 1996</div>
-    </div>
-
-    <div class="info-item">
-      <strong>Paw Anatomy</strong>
-      Gecko feet feature wide, flat metatarsus with 5 radiating digits. Each digit contains multiple phalanges with adhesive toe pads on ventral surface.
-      <div class="reference">Russell, J Zool London 176:437-476, 1975</div>
+  <!-- ══════════ CENTER: 3D CANVAS ══════════ -->
+  <div class="canvas-wrap">
+    <div id="canvas-container"></div>
+    <div class="canvas-glow" id="canvasGlow"></div>
+    <div class="cam-hint">
+      <div class="cam-hint-item"><span class="cam-hint-key">DRAG</span> Rotate</div>
+      <div class="cam-hint-item"><span class="cam-hint-key">RIGHT DRAG</span> Pan</div>
+      <div class="cam-hint-item"><span class="cam-hint-key">SCROLL</span> Zoom</div>
     </div>
   </div>
-</div>
 
-<div class="controls-hint">
-  <div class="hint-item">
-    <span class="hint-key">LEFT DRAG</span>
-    <span>Rotate</span>
-  </div>
-  <div class="hint-item">
-    <span class="hint-key">RIGHT DRAG</span>
-    <span>Pan</span>
-  </div>
-  <div class="hint-item">
-    <span class="hint-key">SCROLL</span>
-    <span>Zoom</span>
-  </div>
-</div>
+  <!-- ══════════ RIGHT: METRICS ══════════ -->
+  <div class="side-panel right">
+    <div class="panel-tag">Live Metrics</div>
 
-<div id="canvas-container"></div>
+    <!-- HERO: Total Force -->
+    <div style="padding: 14px 20px 0;">
+      <div class="metric-hero" id="heroCard">
+        <div class="metric-hero-label">Total Adhesion Force</div>
+        <div class="metric-hero-val" id="totalForce">0.00<span class="metric-hero-unit">N</span></div>
+        <div class="metric-hero-sub" id="heroSub">Calculating…</div>
+      </div>
+    </div>
 
+    <!-- Load capacity hero -->
+    <div style="padding: 0 20px 14px;">
+      <div class="metric-hero" id="loadCard" style="margin:8px 0 0;">
+        <div class="metric-hero-label">Load Capacity</div>
+        <div class="metric-hero-val" id="loadCapacity">0.000<span class="metric-hero-unit">kg</span></div>
+        <div class="metric-hero-sub">Weight supportable by one pad</div>
+      </div>
+    </div>
+
+    <!-- Smaller metrics 2×2 -->
+    <div class="metric-grid">
+      <div class="metric-cell">
+        <div class="mc-label">Spatula Force</div>
+        <div class="mc-val" id="spatulaForce">0.0<span class="mc-unit">nN</span></div>
+      </div>
+      <div class="metric-cell">
+        <div class="mc-label">Seta Force</div>
+        <div class="mc-val" id="setaForce">0.0<span class="mc-unit">μN</span></div>
+      </div>
+      <div class="metric-cell">
+        <div class="mc-label">Contact Area</div>
+        <div class="mc-val" id="contactArea">0.0<span class="mc-unit">mm²</span></div>
+      </div>
+      <div class="metric-cell">
+        <div class="mc-label">Total Setae</div>
+        <div class="mc-val" id="totalSetae">0<span class="mc-unit">k</span></div>
+      </div>
+    </div>
+
+    <!-- Efficiency bar -->
+    <div class="eff-bar-wrap">
+      <div class="eff-bar-label">
+        <span>Adhesion Efficiency</span>
+        <span class="eff-bar-pct" id="effPct">100%</span>
+      </div>
+      <div class="eff-track">
+        <div class="eff-fill" id="effFill" style="width:100%"></div>
+      </div>
+    </div>
+
+    <!-- Factor breakdown -->
+    <div class="divider-label">Efficiency Factors</div>
+    <div class="factors">
+      <div class="factor-row">
+        <span class="factor-name">Distance</span>
+        <div class="factor-track"><div class="factor-fill" id="fDist" style="width:100%; background: var(--accent)"></div></div>
+        <span class="factor-pct" id="fDistPct">100%</span>
+      </div>
+      <div class="factor-row">
+        <span class="factor-name">Angle</span>
+        <div class="factor-track"><div class="factor-fill" id="fAngle" style="width:100%; background: var(--accent)"></div></div>
+        <span class="factor-pct" id="fAnglePct">100%</span>
+      </div>
+      <div class="factor-row">
+        <span class="factor-name">Roughness</span>
+        <div class="factor-track"><div class="factor-fill" id="fRough" style="width:100%; background: var(--accent)"></div></div>
+        <span class="factor-pct" id="fRoughPct">100%</span>
+      </div>
+    </div>
+
+    <!-- Science refs collapsed -->
+    <div style="margin: 4px 20px 20px;">
+      <details style="font-size:10px; color: var(--text-muted);">
+        <summary style="cursor:pointer; color: var(--text-dim); font-family:'Syne',sans-serif; font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:8px;">📚 References</summary>
+        <div style="line-height:1.8; margin-top:8px; padding: 10px; background: rgba(255,255,255,0.03); border-radius:6px; border:1px solid var(--border);">
+          Autumn et al., <em>Nature</em> 405, 2000<br>
+          Autumn et al., <em>PNAS</em> 99, 2002<br>
+          Hansen & Autumn, <em>PNAS</em> 102, 2005<br>
+          Huber et al., <em>PNAS</em> 102, 2005<br>
+          Irschick et al., <em>Biol J Linn Soc</em> 59, 1996
+        </div>
+      </details>
+    </div>
+
+  </div><!-- /right panel -->
+</div><!-- /workspace -->
+
+<!-- ══════════════════════════════════════════
+     THREE.JS SCRIPTS
+══════════════════════════════════════════════ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 
 <script>
-// ============ GLOBAL VARIABLES ============
+// ═══ GLOBALS ═══
 let scene, camera, renderer, controls;
 let geckoFoot, surface, gridHelper;
-let palmMesh;
-let toeGroups = [];
-let toePadGroups = [];
-let lamellaeGroups = [];
-let setaeGroups = [];
-let forceArrows = [];
-let animationFrameId;
-let time = 0;
+let toeGroups=[], toePadGroups=[], lamellaeGroups=[], setaeGroups=[], forceArrows=[];
+let animFrameId, time=0;
+let lastMetrics={};
 
-// ============ PHYSICS CONSTANTS ============
-let HAMAKER_CONSTANT = 5e-20;
-const SPATULA_WIDTH = 200e-9;
-const SPATULA_LENGTH = 200e-9;
-const SPATULA_AREA = SPATULA_WIDTH * SPATULA_LENGTH;
-let SPATULAE_PER_SETA = 100;
-let TOE_PAD_AREA = 100;
-const GRAVITY = 9.81;
-let CONTACT_EFFICIENCY = 0.05;
+// Physics
+const SPATULA_AREA = 200e-9 * 200e-9;
+let SPATULAE_PER_SETA=100, TOE_PAD_AREA=100, HAMAKER=5e-20, CONTACT_EFF=0.05;
 
-// Cached metrics for print report
-let lastMetrics = {};
-
-// ============ INITIALIZATION ============
+// ═══ INIT ═══
 function init() {
+  const container = document.getElementById('canvas-container');
+  const W = container.clientWidth, H = container.clientHeight;
+
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a0e27);
-  scene.fog = new THREE.FogExp2(0x0a0e27, 0.035);
+  scene.background = new THREE.Color(0x080c1e);
+  scene.fog = new THREE.FogExp2(0x080c1e, 0.032);
 
-  camera = new THREE.PerspectiveCamera(
-    55,
-    window.innerWidth / window.innerHeight,
-    0.1,
-    100
-  );
-  camera.position.set(0, 2.5, 4.5);
+  camera = new THREE.PerspectiveCamera(52, W/H, 0.1, 100);
+  camera.position.set(0, 2.6, 4.8);
 
-  renderer = new THREE.WebGLRenderer({ 
-    antialias: true,
-    alpha: false,
-    powerPreference: 'high-performance',
-    preserveDrawingBuffer: true   // needed for canvas screenshot
-  });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true, powerPreference:'high-performance' });
+  renderer.setSize(W, H);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.4;
-  
-  document.getElementById('canvas-container').appendChild(renderer.domElement);
+  container.appendChild(renderer.domElement);
 
   controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.06;
   controls.minDistance = 1.2;
   controls.maxDistance = 10;
-  controls.maxPolarAngle = Math.PI / 1.7;
   controls.target.set(0, 0.2, 0);
   controls.update();
 
   setupLights();
-  createEnvironment();
-  createOrganicGeckoPaw();
-  
-  setTimeout(() => {
-    document.getElementById('loading').style.display = 'none';
-  }, 800);
+  buildEnvironment();
+  buildGeckoPaw();
 
-  setupEventListeners();
-  updateSimulation();
-  animate();
+  setTimeout(()=>{ document.getElementById('loadingScreen').style.display='none'; }, 900);
+
+  setupListeners();
+  updateSim();
+  loop();
 }
 
-// ============ LIGHTING ============
+// ═══ LIGHTS ═══
 function setupLights() {
-  const ambientLight = new THREE.AmbientLight(0x5a6a8a, 0.8);
-  scene.add(ambientLight);
+  scene.add(new THREE.AmbientLight(0x5a6a8a, 0.85));
 
-  const mainLight = new THREE.DirectionalLight(0xffffff, 2.2);
-  mainLight.position.set(5, 8, 4);
-  mainLight.castShadow = true;
-  mainLight.shadow.mapSize.width = 2048;
-  mainLight.shadow.mapSize.height = 2048;
-  mainLight.shadow.camera.near = 0.5;
-  mainLight.shadow.camera.far = 20;
-  mainLight.shadow.camera.left = -5;
-  mainLight.shadow.camera.right = 5;
-  mainLight.shadow.camera.top = 5;
-  mainLight.shadow.camera.bottom = -5;
-  mainLight.shadow.bias = -0.0005;
-  scene.add(mainLight);
+  const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+  sun.position.set(5,8,4);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048,2048);
+  sun.shadow.camera.left=-5; sun.shadow.camera.right=5;
+  sun.shadow.camera.top=5; sun.shadow.camera.bottom=-5;
+  sun.shadow.bias=-0.0005;
+  scene.add(sun);
 
-  const rimLight1 = new THREE.DirectionalLight(0x00ff88, 1.5);
-  rimLight1.position.set(-4, 2, -4);
-  scene.add(rimLight1);
+  const rim1 = new THREE.DirectionalLight(0x00ff88, 1.4);
+  rim1.position.set(-4,2,-4); scene.add(rim1);
 
-  const rimLight2 = new THREE.DirectionalLight(0x00d4ff, 1.0);
-  rimLight2.position.set(4, 2, -3);
-  scene.add(rimLight2);
+  const rim2 = new THREE.DirectionalLight(0x00d4ff, 0.9);
+  rim2.position.set(4,2,-3); scene.add(rim2);
 
-  const fillLight = new THREE.HemisphereLight(0x4a6a9a, 0x2a3a5a, 0.7);
-  scene.add(fillLight);
+  scene.add(new THREE.HemisphereLight(0x4a6a9a, 0x2a3a5a, 0.7));
 
-  const pointLight = new THREE.PointLight(0x00ffaa, 2.0, 10);
-  pointLight.position.set(0, 3, 2);
-  scene.add(pointLight);
+  const fill = new THREE.PointLight(0x00ffaa, 2.0, 10);
+  fill.position.set(0,3,2); scene.add(fill);
 }
 
-// ============ ENVIRONMENT ============
-function createEnvironment() {
-  const surfaceGeom = new THREE.PlaneGeometry(20, 20);
-  const surfaceMat = new THREE.MeshStandardMaterial({
-    color: 0x2a3a5a,
-    roughness: 0.2,
-    metalness: 0.8,
-    transparent: true,
-    opacity: 0.98
-  });
-  surface = new THREE.Mesh(surfaceGeom, surfaceMat);
-  surface.rotation.x = -Math.PI / 2;
+// ═══ ENVIRONMENT ═══
+function buildEnvironment() {
+  const surfMat = new THREE.MeshStandardMaterial({ color:0x2a3a5a, roughness:0.2, metalness:0.8, transparent:true, opacity:0.98 });
+  surface = new THREE.Mesh(new THREE.PlaneGeometry(20,20), surfMat);
+  surface.rotation.x = -Math.PI/2;
   surface.receiveShadow = true;
   scene.add(surface);
 
@@ -1239,873 +1040,412 @@ function createEnvironment() {
   gridHelper.material.transparent = true;
   scene.add(gridHelper);
 
-  const particlesGeom = new THREE.BufferGeometry();
-  const particlesCount = 1200;
-  const positions = new Float32Array(particlesCount * 3);
-  
-  for (let i = 0; i < particlesCount * 3; i += 3) {
-    positions[i] = (Math.random() - 0.5) * 25;
-    positions[i + 1] = Math.random() * 10;
-    positions[i + 2] = (Math.random() - 0.5) * 25;
+  // Floating particles
+  const pg = new THREE.BufferGeometry();
+  const pos = new Float32Array(1200*3);
+  for(let i=0;i<1200*3;i+=3){
+    pos[i]=(Math.random()-0.5)*25;
+    pos[i+1]=Math.random()*10;
+    pos[i+2]=(Math.random()-0.5)*25;
   }
-  
-  particlesGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  
-  const particlesMat = new THREE.PointsMaterial({
-    color: 0x00ff88,
-    size: 0.01,
-    transparent: true,
-    opacity: 0.6,
-    blending: THREE.AdditiveBlending
-  });
-  
-  const particles = new THREE.Points(particlesGeom, particlesMat);
-  scene.add(particles);
+  pg.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  scene.add(new THREE.Points(pg, new THREE.PointsMaterial({ color:0x00ff88, size:0.01, transparent:true, opacity:0.5, blending:THREE.AdditiveBlending })));
 }
 
-// ============ ORGANIC GECKO PAW ============
-function createOrganicGeckoPaw() {
+// ═══ GECKO PAW ═══
+function buildGeckoPaw() {
   geckoFoot = new THREE.Group();
-  
-  const skinColor = 0x5a7a5a;
-  const padColor = 0x6a8a6a;
-  
-  const skinMat = new THREE.MeshStandardMaterial({
-    color: skinColor,
-    roughness: 0.78,
-    metalness: 0.1,
-    flatShading: false
-  });
 
-  const padMat = new THREE.MeshStandardMaterial({
-    color: padColor,
-    roughness: 0.92,
-    metalness: 0.05,
-    flatShading: false
-  });
+  const skinMat = new THREE.MeshStandardMaterial({ color:0x5a7a5a, roughness:0.78, metalness:0.1 });
+  const padMat  = new THREE.MeshStandardMaterial({ color:0x6a8a6a, roughness:0.92, metalness:0.05 });
 
-  const palmGeom = new THREE.SphereGeometry(0.7, 32, 24);
-  palmGeom.scale(1.4, 0.3, 1.0);
-  
-  palmMesh = new THREE.Mesh(palmGeom, skinMat);
-  palmMesh.position.y = 0.08;
-  palmMesh.position.z = 0;
-  palmMesh.castShadow = true;
-  palmMesh.receiveShadow = true;
-  geckoFoot.add(palmMesh);
+  const palmG = new THREE.SphereGeometry(0.7, 32, 24);
+  palmG.scale(1.4, 0.3, 1.0);
+  const palm = new THREE.Mesh(palmG, skinMat);
+  palm.position.y = 0.08;
+  palm.castShadow = palm.receiveShadow = true;
+  geckoFoot.add(palm);
 
-  for (let i = 0; i < 25; i++) {
-    const scaleGeom = new THREE.SphereGeometry(0.018 + Math.random() * 0.012, 8, 8);
-    const scale = new THREE.Mesh(scaleGeom, skinMat);
-    const angle = Math.random() * Math.PI * 2;
-    const radius = Math.random() * 0.6;
-    scale.position.set(
-      Math.cos(angle) * radius,
-      0.12 + Math.random() * 0.04,
-      Math.sin(angle) * radius * 0.7
-    );
-    geckoFoot.add(scale);
+  // Scales
+  for(let i=0;i<25;i++){
+    const sc = new THREE.Mesh(new THREE.SphereGeometry(0.018+Math.random()*0.012,8,8), skinMat);
+    const a=Math.random()*Math.PI*2, r=Math.random()*0.6;
+    sc.position.set(Math.cos(a)*r, 0.12+Math.random()*0.04, Math.sin(a)*r*0.7);
+    geckoFoot.add(sc);
   }
 
   const toeConfigs = [
-    { angle: -0.85, length: 0.9, palmOffset: 0.65, name: 'Toe 1' },
-    { angle: -0.42, length: 1.05, palmOffset: 0.45, name: 'Toe 2' },
-    { angle: 0, length: 1.2, palmOffset: 0.3, name: 'Toe 3' },
-    { angle: 0.42, length: 1.05, palmOffset: 0.45, name: 'Toe 4' },
-    { angle: 0.85, length: 0.9, palmOffset: 0.65, name: 'Toe 5' }
+    {angle:-0.85, length:0.9, offset:0.65},
+    {angle:-0.42, length:1.05, offset:0.45},
+    {angle:0,     length:1.2,  offset:0.3},
+    {angle:0.42,  length:1.05, offset:0.45},
+    {angle:0.85,  length:0.9,  offset:0.65},
   ];
 
-  toeConfigs.forEach((config, toeIndex) => {
-    const toeGroup = new THREE.Group();
-    
-    const toePadGroup = new THREE.Group();
-    
-    const padGeom = new THREE.SphereGeometry(0.15, 24, 20);
-    padGeom.scale(1.25, 0.32, 1.0);
-    const pad = new THREE.Mesh(padGeom, padMat);
-    pad.position.y = 0.02;
-    pad.castShadow = true;
-    pad.receiveShadow = true;
-    toePadGroup.add(pad);
-    
-    toeGroup.add(toePadGroup);
-    toePadGroups.push(toePadGroup);
+  toeConfigs.forEach(cfg => {
+    const tg = new THREE.Group();
+    const pg2 = new THREE.Group();
 
-    const totalFingerLength = (0.28 + 0.24 + 0.22) * config.length; 
-    
-    const spreadX = Math.sin(config.angle) * (config.palmOffset + totalFingerLength);
-    const spreadZ = Math.cos(config.angle) * (config.palmOffset + totalFingerLength) * 0.5;
-    
-    toeGroup.position.x = spreadX;
-    toeGroup.position.y = 0.08;
-    toeGroup.position.z = spreadZ + 0.3;
-    toeGroup.rotation.y = config.angle * 0.25;
-    toeGroup.rotation.x = -0.08;
-    
-    geckoFoot.add(toeGroup);
-    toeGroups.push(toeGroup);
+    const padG = new THREE.SphereGeometry(0.15, 24, 20);
+    padG.scale(1.25, 0.32, 1.0);
+    const pad = new THREE.Mesh(padG, padMat);
+    pad.position.y = 0.02;
+    pad.castShadow = pad.receiveShadow = true;
+    pg2.add(pad);
+    tg.add(pg2);
+    toePadGroups.push(pg2);
+
+    const totalLen = (0.28+0.24+0.22)*cfg.length;
+    tg.position.x = Math.sin(cfg.angle)*(cfg.offset+totalLen);
+    tg.position.y = 0.08;
+    tg.position.z = Math.cos(cfg.angle)*(cfg.offset+totalLen)*0.5 + 0.3;
+    tg.rotation.y = cfg.angle*0.25;
+    tg.rotation.x = -0.08;
+
+    geckoFoot.add(tg);
+    toeGroups.push(tg);
   });
 
   geckoFoot.position.y = 0.01;
   geckoFoot.rotation.y = Math.PI;
-  
   scene.add(geckoFoot);
 
-  createLamellaeAndSetae(18, 14400);
+  buildLamellaeSeta(18, 14400);
 }
 
-// ============ LAMELLAE & SETAE ============
-function createLamellaeAndSetae(lamellaeCount, setaeDensity) {
-  lamellaeGroups.forEach(group => {
-    if (group.parent) group.parent.remove(group);
-  });
-  lamellaeGroups = [];
-  
-  setaeGroups.forEach(group => {
-    if (group.parent) group.parent.remove(group);
-  });
-  setaeGroups = [];
-  
-  forceArrows.forEach(arrow => scene.remove(arrow));
-  forceArrows = [];
+// ═══ LAMELLAE & SETAE ═══
+function buildLamellaeSeta(lamCount, density) {
+  lamellaeGroups.forEach(g=>g.parent&&g.parent.remove(g));
+  setaeGroups.forEach(g=>g.parent&&g.parent.remove(g));
+  forceArrows.forEach(a=>scene.remove(a));
+  lamellaeGroups=[]; setaeGroups=[]; forceArrows=[];
 
-  const lamellaeMat = new THREE.MeshStandardMaterial({
-    color: 0x7a9d7a,
-    roughness: 0.98,
-    metalness: 0.02
-  });
+  const lamMat = new THREE.MeshStandardMaterial({ color:0x7a9d7a, roughness:0.98, metalness:0.02 });
+  const setaMat = new THREE.MeshStandardMaterial({ color:0x00ff88, emissive:0x00ff88, emissiveIntensity:0.55, roughness:0.25, transparent:true, opacity:0.88 });
 
-  const setaMat = new THREE.MeshStandardMaterial({
-    color: 0x00ff88,
-    emissive: 0x00ff88,
-    emissiveIntensity: 0.55,
-    roughness: 0.25,
-    transparent: true,
-    opacity: 0.88
-  });
-
-  toePadGroups.forEach((padGroup, padIndex) => {
-    const lamellaeGroup = new THREE.Group();
-    const setaeGroup = new THREE.Group();
-    
-    for (let i = 0; i < lamellaeCount; i++) {
-      const progress = i / (lamellaeCount - 1);
-      const width = 0.17 * (1 - progress * 0.22);
-      
-      const ridgeGeom = new THREE.BoxGeometry(width, 0.005, 0.016);
-      const ridge = new THREE.Mesh(ridgeGeom, lamellaeMat);
-      
-      ridge.position.y = -0.068;
-      ridge.position.z = -0.13 + (progress * 0.26);
-      ridge.castShadow = true;
-      ridge.receiveShadow = true;
-      
-      lamellaeGroup.add(ridge);
+  toePadGroups.forEach((pg, idx) => {
+    const lamGrp = new THREE.Group();
+    for(let i=0;i<lamCount;i++){
+      const p = i/(lamCount-1);
+      const w = 0.17*(1-p*0.22);
+      const ridge = new THREE.Mesh(new THREE.BoxGeometry(w,0.005,0.016), lamMat);
+      ridge.position.set(0,-0.068,-0.13+p*0.26);
+      lamGrp.add(ridge);
     }
-    
-    padGroup.add(lamellaeGroup);
-    lamellaeGroups.push(lamellaeGroup);
+    pg.add(lamGrp);
+    lamellaeGroups.push(lamGrp);
 
-    const setaePerPad = Math.floor(setaeDensity / 32);
-    
-    for (let i = 0; i < setaePerPad; i++) {
-      const x = (Math.random() - 0.5) * 0.3;
-      const z = (Math.random() - 0.5) * 0.2;
-      
-      const setaGeom = new THREE.CylinderGeometry(0.0010, 0.0007, 0.10, 3);
-      const seta = new THREE.Mesh(setaGeom, setaMat.clone());
-      
-      seta.position.set(x, -0.12, z);
-      seta.rotation.x = (Math.random() - 0.5) * 0.1;
-      seta.rotation.z = (Math.random() - 0.5) * 0.1;
-      
-      const spatulaGeom = new THREE.SphereGeometry(0.0032, 4, 4);
-      const spatula = new THREE.Mesh(spatulaGeom, setaMat.clone());
-      spatula.position.y = -0.05;
-      seta.add(spatula);
-      
-      for (let b = 0; b < 3; b++) {
-        const branchAngle = (b / 3) * Math.PI * 2;
-        const microBranch = new THREE.Mesh(
-          new THREE.SphereGeometry(0.001, 3, 3),
-          setaMat.clone()
-        );
-        microBranch.position.x = Math.cos(branchAngle) * 0.0045;
-        microBranch.position.z = Math.sin(branchAngle) * 0.0045;
-        microBranch.position.y = -0.0018;
-        spatula.add(microBranch);
+    const setaGrp = new THREE.Group();
+    const count = Math.floor(density/32);
+    for(let i=0;i<count;i++){
+      const x=(Math.random()-0.5)*0.3, z=(Math.random()-0.5)*0.2;
+      const seta = new THREE.Mesh(new THREE.CylinderGeometry(0.001,0.0007,0.10,3), setaMat.clone());
+      seta.position.set(x,-0.12,z);
+      seta.rotation.x=(Math.random()-0.5)*0.1;
+      seta.rotation.z=(Math.random()-0.5)*0.1;
+
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.0032,4,4), setaMat.clone());
+      tip.position.y=-0.05; seta.add(tip);
+
+      for(let b=0;b<3;b++){
+        const ba=b/3*Math.PI*2;
+        const mb = new THREE.Mesh(new THREE.SphereGeometry(0.001,3,3), setaMat.clone());
+        mb.position.set(Math.cos(ba)*0.0045, -0.0018, Math.sin(ba)*0.0045);
+        tip.add(mb);
       }
-      
-      setaeGroup.add(seta);
+      setaGrp.add(seta);
     }
-    
-    padGroup.add(setaeGroup);
-    setaeGroups.push(setaeGroup);
+    pg.add(setaGrp);
+    setaeGroups.push(setaGrp);
 
-    const arrowOrigin = new THREE.Vector3();
-    padGroup.getWorldPosition(arrowOrigin);
-    arrowOrigin.y -= 0.11;
-    
-    const arrow = new THREE.ArrowHelper(
-      new THREE.Vector3(0, -1, 0),
-      arrowOrigin,
-      0.48,
-      0x00ff88,
-      0.10,
-      0.065
-    );
+    // Force arrow
+    const origin = new THREE.Vector3();
+    pg.getWorldPosition(origin);
+    origin.y -= 0.11;
+    const arrow = new THREE.ArrowHelper(new THREE.Vector3(0,-1,0), origin, 0.48, 0x00ff88, 0.10, 0.065);
     scene.add(arrow);
     forceArrows.push(arrow);
   });
 }
 
-// ============ PHYSICS ============
-function calculateSpatulaForce(separation_nm, hamaker) {
-  const d = separation_nm * 1e-9;
-  const h = hamaker * 1e-20;
-  return (SPATULA_AREA * h) / (6 * Math.PI * Math.pow(d, 3));
+// ═══ PHYSICS ═══
+function spatulaForce(d_nm, hamaker) {
+  const d = d_nm*1e-9, h=hamaker*1e-20;
+  return (SPATULA_AREA*h)/(6*Math.PI*Math.pow(d,3));
 }
 
-function calculateEfficiency(angle, distance, roughness) {
-  let distEff = distance <= 0.6 ? 1.0 : Math.exp(-2.0 * (distance - 0.6));
-  let angleEff = angle <= 30 ? 1.0 : Math.cos((angle * Math.PI) / 180);
-  let roughEff = Math.pow(0.7, roughness - 1);
-  
-  return {
-    distance: distEff,
-    angle: angleEff,
-    roughness: roughEff,
-    total: distEff * angleEff * roughEff
-  };
+function efficiencyFactors(angle, distance, roughness) {
+  const dE = distance<=0.6 ? 1.0 : Math.exp(-2.0*(distance-0.6));
+  const aE = angle<=30    ? 1.0 : Math.cos(angle*Math.PI/180);
+  const rE = Math.pow(0.7, roughness-1);
+  return { d:Math.max(0,dE), a:Math.max(0,aE), r:rE, total:Math.max(0,dE)*Math.max(0,aE)*rE };
 }
 
-// ============ UPDATE SIMULATION ============
-function updateSimulation() {
-  const density = parseInt(document.getElementById('density').value);
-  const spatulae = parseInt(document.getElementById('spatulae').value);
-  const lamellaeCount = parseInt(document.getElementById('lamellae').value);
-  const padArea = parseInt(document.getElementById('padArea').value);
-  const angle = parseInt(document.getElementById('angle').value);
-  const distance = parseFloat(document.getElementById('distance').value);
-  const hamaker = parseFloat(document.getElementById('hamaker').value);
-  const roughness = parseInt(document.getElementById('roughness').value);
-  const efficiency = parseInt(document.getElementById('efficiency').value);
+// ═══ UPDATE SIMULATION ═══
+function updateSim() {
+  const density  = +document.getElementById('density').value;
+  const spatulae = +document.getElementById('spatulae').value;
+  const lamCount = +document.getElementById('lamellae').value;
+  const padArea  = +document.getElementById('padArea').value;
+  const angle    = +document.getElementById('angle').value;
+  const distance = +document.getElementById('distance').value;
+  const hamaker  = +document.getElementById('hamaker').value;
+  const roughness= +document.getElementById('roughness').value;
+  const efficiency=+document.getElementById('efficiency').value;
 
-  document.getElementById('densityVal').textContent = density.toLocaleString();
-  document.getElementById('spatulaeVal').textContent = spatulae;
-  document.getElementById('lamellaeVal').textContent = lamellaeCount;
-  document.getElementById('padAreaVal').textContent = padArea;
-  document.getElementById('angleVal').textContent = angle;
-  document.getElementById('distanceVal').textContent = distance.toFixed(2);
-  document.getElementById('hamakerVal').textContent = hamaker.toFixed(1);
-  document.getElementById('efficiencyVal').textContent = efficiency.toFixed(1);
-  
-  const roughLabels = ['Smooth', 'Fine', 'Medium', 'Coarse', 'Rough'];
-  document.getElementById('roughnessVal').textContent = roughLabels[roughness - 1];
+  // Display values
+  document.getElementById('densityVal').textContent   = density.toLocaleString();
+  document.getElementById('spatulaeVal').textContent  = spatulae;
+  document.getElementById('lamellaeVal').textContent  = lamCount;
+  document.getElementById('padAreaVal').textContent   = padArea;
+  document.getElementById('angleVal').textContent     = angle;
+  document.getElementById('distanceVal').textContent  = distance.toFixed(2);
+  document.getElementById('hamakerVal').textContent   = hamaker.toFixed(1);
+  document.getElementById('efficiencyVal').textContent= efficiency.toFixed(1);
+  const roughLabels=['Smooth','Fine','Medium','Coarse','Rough'];
+  document.getElementById('roughnessVal').textContent = roughLabels[roughness-1];
 
-  SPATULAE_PER_SETA = spatulae;
-  TOE_PAD_AREA = padArea;
-  HAMAKER_CONSTANT = hamaker * 1e-20;
-  CONTACT_EFFICIENCY = efficiency / 100;
+  SPATULAE_PER_SETA=spatulae; TOE_PAD_AREA=padArea; HAMAKER=hamaker*1e-20; CONTACT_EFF=efficiency/100;
 
-  const currentLamellae = lamellaeGroups[0]?.children.length || 0;
-  const currentSetae = setaeGroups[0]?.children.length || 0;
-  const targetSetae = Math.floor(density / 32);
-  
-  if (currentLamellae !== lamellaeCount || Math.abs(currentSetae - targetSetae) > 70) {
-    createLamellaeAndSetae(lamellaeCount, density);
-  }
+  // Rebuild if needed
+  const curLam = lamellaeGroups[0]?.children.length||0;
+  const curSet = setaeGroups[0]?.children.length||0;
+  const tgtSet = Math.floor(density/32);
+  if(curLam!==lamCount || Math.abs(curSet-tgtSet)>70) buildLamellaeSeta(lamCount, density);
 
-  const forcePerSpatula = calculateSpatulaForce(distance, hamaker);
-  const eff = calculateEfficiency(angle, distance, roughness);
-  
-  const totalSetae = density * TOE_PAD_AREA;
-  const totalSpatulae = totalSetae * SPATULAE_PER_SETA;
-  const effectiveSpatulae = totalSpatulae * CONTACT_EFFICIENCY * eff.total;
-  
-  const totalForce = forcePerSpatula * effectiveSpatulae;
-  const forcePerSeta = forcePerSpatula * SPATULAE_PER_SETA * CONTACT_EFFICIENCY * eff.total;
-  const effectiveArea = TOE_PAD_AREA * eff.total * CONTACT_EFFICIENCY;
-  const loadCapacity = totalForce / GRAVITY;
-  const isAdhered = eff.total > 0.3;
+  // Physics
+  const fSpat = spatulaForce(distance, hamaker);
+  const eff   = efficiencyFactors(angle, distance, roughness);
+  const totalSetae = density*padArea;
+  const totalSpat  = totalSetae*spatulae;
+  const effSpat    = totalSpat*CONTACT_EFF*eff.total;
+  const fTotal     = fSpat*effSpat;
+  const fSeta      = fSpat*spatulae*CONTACT_EFF*eff.total;
+  const effArea    = padArea*eff.total*CONTACT_EFF;
+  const loadCap    = fTotal/9.81;
+  const isAdhered  = eff.total>0.3;
+  const effPct     = (eff.total*100).toFixed(1);
 
-  // Cache for print report
-  const roughLabels2 = ['Smooth', 'Fine', 'Medium', 'Coarse', 'Rough'];
+  // ─── STATE SWITCH: body class + CSS vars ───
+  document.body.classList.toggle('adhered',   isAdhered);
+  document.body.classList.toggle('detaching', !isAdhered);
+
+  // Top bar state
+  document.getElementById('stateLabelBar').textContent = isAdhered ? 'ADHERED' : 'DETACHING';
+  document.getElementById('stateEffBar').textContent   = `eff. ${effPct}%`;
+
+  // Metrics
+  document.getElementById('totalForce').innerHTML  = `${fTotal.toFixed(2)}<span class="metric-hero-unit">N</span>`;
+  document.getElementById('loadCapacity').innerHTML= `${loadCap.toFixed(3)}<span class="metric-hero-unit">kg</span>`;
+  document.getElementById('heroSub').textContent   = isAdhered ? '✓ Sufficient adhesion' : '✗ Insufficient adhesion';
+  document.getElementById('spatulaForce').innerHTML= `${(fSpat*1e9).toFixed(1)}<span class="mc-unit">nN</span>`;
+  document.getElementById('setaForce').innerHTML   = `${(fSeta*1e6).toFixed(1)}<span class="mc-unit">μN</span>`;
+  document.getElementById('contactArea').innerHTML = `${effArea.toFixed(2)}<span class="mc-unit">mm²</span>`;
+  document.getElementById('totalSetae').innerHTML  = `${(totalSetae/1000).toFixed(0)}<span class="mc-unit">k</span>`;
+
+  // Efficiency bar
+  document.getElementById('effFill').style.width  = effPct+'%';
+  document.getElementById('effPct').textContent   = effPct+'%';
+
+  // Factor bars
+  const factors=[
+    { id:'fDist', pctId:'fDistPct', val:eff.d },
+    { id:'fAngle', pctId:'fAnglePct', val:eff.a },
+    { id:'fRough', pctId:'fRoughPct', val:eff.r },
+  ];
+  factors.forEach(f=>{
+    const pct=(f.val*100).toFixed(0);
+    document.getElementById(f.id).style.width = pct+'%';
+    document.getElementById(f.id).style.background = isAdhered ? 'var(--accent)' : '#ff4040';
+    document.getElementById(f.pctId).textContent = pct+'%';
+  });
+
+  // Cache for PDF
   lastMetrics = {
-    density, spatulae, lamellaeCount, padArea, angle,
-    distance, hamaker, roughness: roughLabels2[roughness - 1],
-    efficiency,
-    spatulaForce: (forcePerSpatula * 1e9).toFixed(1),
-    setaForce: (forcePerSeta * 1e6).toFixed(1),
-    totalForce: totalForce.toFixed(2),
-    contactArea: effectiveArea.toFixed(2),
-    loadCapacity: loadCapacity.toFixed(3),
-    adhesionState: isAdhered ? 'ADHERED' : 'DETACHING',
-    effTotal: (eff.total * 100).toFixed(1),
+    density, spatulae, lamCount, padArea, angle, distance, hamaker,
+    roughness: roughLabels[roughness-1], efficiency,
+    spatulaForce:(fSpat*1e9).toFixed(1),
+    setaForce:(fSeta*1e6).toFixed(1),
+    totalForce:fTotal.toFixed(2),
+    contactArea:effArea.toFixed(2),
+    loadCapacity:loadCap.toFixed(3),
+    adhesionState: isAdhered?'ADHERED':'DETACHING',
+    effPct,
     timestamp: new Date().toLocaleString()
   };
 
-  document.getElementById('spatulaForce').innerHTML = 
-    `${lastMetrics.spatulaForce} <span class="unit">nN</span>`;
-  document.getElementById('setaForce').innerHTML = 
-    `${lastMetrics.setaForce} <span class="unit">μN</span>`;
-  document.getElementById('totalForce').innerHTML = 
-    `${lastMetrics.totalForce} <span class="unit">N</span>`;
-  document.getElementById('contactArea').innerHTML = 
-    `${lastMetrics.contactArea} <span class="unit">mm²</span>`;
-  document.getElementById('loadCapacity').innerHTML = 
-    `${lastMetrics.loadCapacity} <span class="unit">kg</span>`;
+  // ─── 3D: seta colours ───
+  const hue = isAdhered ? 0.38 : 0;
+  setaeGroups.forEach(grp => grp.children.forEach(s=>{
+    const col = new THREE.Color().setHSL(hue, 1.0, 0.5);
+    s.material.color=col; s.material.emissive=col;
+    s.material.emissiveIntensity=eff.total*0.7;
+    s.rotation.y=(angle*Math.PI/180)*0.12;
+  }));
 
-  document.getElementById('stateDisplay').innerHTML = isAdhered
-    ? '<div class="state-badge adhered"><span class="state-indicator"></span>ADHERED</div>'
-    : '<div class="state-badge detaching"><span class="state-indicator"></span>DETACHING</div>';
+  geckoFoot.position.y = 0.01+(distance-0.3)*0.05;
 
-  const theta = (angle * Math.PI) / 180;
-  setaeGroups.forEach(group => {
-    group.children.forEach(seta => {
-      const hue = isAdhered ? 0.48 : 0;
-      const color = new THREE.Color().setHSL(hue, eff.total, 0.5);
-      seta.material.color = color;
-      seta.material.emissive = color;
-      seta.material.emissiveIntensity = eff.total * 0.7;
-      seta.rotation.y = theta * 0.12;
-    });
+  forceArrows.forEach((arrow,i)=>{
+    const wp=new THREE.Vector3();
+    toePadGroups[i].getWorldPosition(wp); wp.y-=0.11;
+    arrow.position.copy(wp);
+    arrow.setLength(eff.total*0.6,0.10,0.065);
+    arrow.setColor(isAdhered?0x00ff88:0xff4040);
   });
 
-  geckoFoot.position.y = 0.01 + (distance - 0.3) * 0.05;
-  
-  forceArrows.forEach((arrow, i) => {
-    const worldPos = new THREE.Vector3();
-    toePadGroups[i].getWorldPosition(worldPos);
-    worldPos.y -= 0.11;
-    arrow.position.copy(worldPos);
-    arrow.setLength(eff.total * 0.6, 0.10, 0.065);
-    arrow.setColor(isAdhered ? 0x00ff88 : 0xff4444);
-  });
-
-  if (surface) {
-    surface.material.roughness = 0.12 + roughness * 0.16;
-  }
+  if(surface) surface.material.roughness = 0.12+roughness*0.16;
 }
 
-// ============ ANIMATION ============
-function animate() {
-  animationFrameId = requestAnimationFrame(animate);
+// ═══ ANIMATION LOOP ═══
+function loop() {
+  animFrameId = requestAnimationFrame(loop);
   time += 10;
 
-  if (document.getElementById('toggleRotate').checked) {
-    controls.autoRotate = true;
-    controls.autoRotateSpeed = 2.2;
-  } else {
-    controls.autoRotate = false;
-  }
-
+  controls.autoRotate = document.getElementById('toggleRotate').checked;
+  controls.autoRotateSpeed = 2.2;
   controls.update();
 
-  const breathe = Math.sin(time * 0.0002) * 0.008;
-  toeGroups.forEach(toe => {
-    toe.scale.y = 1 + breathe;
+  const breathe = Math.sin(time*0.0002)*0.008;
+  toeGroups.forEach(t=>t.scale.y=1+breathe);
+
+  renderer.render(scene, camera);
+}
+
+// ═══ LISTENERS ═══
+function setupListeners() {
+  ['density','spatulae','lamellae','padArea','angle','distance','hamaker','roughness','efficiency']
+    .forEach(id=>document.getElementById(id).addEventListener('input', updateSim));
+
+  document.getElementById('toggleGrid').addEventListener('change', e=>gridHelper.visible=e.target.checked);
+  document.getElementById('toggleSetae').addEventListener('change', e=>setaeGroups.forEach(g=>g.visible=e.target.checked));
+  document.getElementById('toggleLamellae').addEventListener('change', e=>lamellaeGroups.forEach(g=>g.visible=e.target.checked));
+  document.getElementById('toggleForces').addEventListener('change', e=>forceArrows.forEach(a=>a.visible=e.target.checked));
+
+  window.addEventListener('resize', ()=>{
+    const c=document.getElementById('canvas-container');
+    const W=c.clientWidth, H=c.clientHeight;
+    camera.aspect=W/H; camera.updateProjectionMatrix();
+    renderer.setSize(W,H);
   });
-
-  renderer.render(scene, camera);
 }
 
-// ============ HOME FUNCTION ============
-function goHome() {
-  if (confirm('Return to home? The simulation will close.')) {
-    window.history.back();
-    // Fallback: if no history, show a message
-    setTimeout(() => {
-      alert('No previous page found. Navigate using your browser controls.');
-    }, 300);
-  }
+// ═══ RESET ═══
+function resetSimulation() {
+  document.getElementById('density').value   = 14400;
+  document.getElementById('spatulae').value  = 100;
+  document.getElementById('lamellae').value  = 18;
+  document.getElementById('padArea').value   = 100;
+  document.getElementById('angle').value     = 30;
+  document.getElementById('distance').value  = 0.30;
+  document.getElementById('hamaker').value   = 5.0;
+  document.getElementById('roughness').value = 1;
+  document.getElementById('efficiency').value= 5;
+  updateSim();
 }
 
-// ============ PRINT / SAVE PDF FUNCTION ============
+// ═══ PDF REPORT ═══
 function printReport() {
-  const btn = document.getElementById('printBtn');
-  btn.classList.add('printing');
-  btn.textContent = '⏳';
-  
-  // Force one more render to get latest frame
   renderer.render(scene, camera);
-  
-  setTimeout(() => {
-    const canvasImg = renderer.domElement.toDataURL('image/png');
+  setTimeout(()=>{
+    const img = renderer.domElement.toDataURL('image/png');
     const m = lastMetrics;
-    const stateColor = m.adhesionState === 'ADHERED' ? '#00ff88' : '#ff4444';
+    const sc = m.adhesionState==='ADHERED'?'#00ff88':'#ff4040';
 
-    const printHTML = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Gecko Adhesion Physics - Simulation Report</title>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    body {
-      font-family: 'JetBrains Mono', monospace;
-      background: #0a0e27;
-      color: #ffffff;
-      padding: 0;
-    }
-
-    .page {
-      width: 210mm;
-      min-height: 297mm;
-      margin: 0 auto;
-      background: #0a0e27;
-      padding: 12mm 14mm;
-    }
-
-    /* ---- HEADER ---- */
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      padding-bottom: 10px;
-      border-bottom: 2px solid rgba(0,255,136,0.4);
-      margin-bottom: 14px;
-    }
-
-    .header-left h1 {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 20px;
-      font-weight: 900;
-      background: linear-gradient(135deg, #00ff88, #00d4ff);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      letter-spacing: 2px;
-      line-height: 1.2;
-    }
-
-    .header-left p {
-      font-size: 9px;
-      color: rgba(255,255,255,0.45);
-      margin-top: 4px;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-    }
-
-    .header-right {
-      text-align: right;
-    }
-
-    .header-right .timestamp {
-      font-size: 9px;
-      color: rgba(0,212,255,0.7);
-      letter-spacing: 1px;
-    }
-
-    .state-pill {
-      display: inline-block;
-      margin-top: 5px;
-      padding: 4px 14px;
-      border-radius: 20px;
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      border: 1.5px solid ${stateColor};
-      color: ${stateColor};
-      font-family: 'Orbitron', sans-serif;
-    }
-
-    /* ---- CANVAS IMAGE ---- */
-    .canvas-wrap {
-      width: 100%;
-      border-radius: 12px;
-      overflow: hidden;
-      border: 1px solid rgba(0,255,136,0.2);
-      margin-bottom: 14px;
-      background: #0d1232;
-      position: relative;
-    }
-
-    .canvas-wrap img {
-      width: 100%;
-      display: block;
-      max-height: 90mm;
-      object-fit: cover;
-    }
-
-    .canvas-label {
-      position: absolute;
-      bottom: 8px;
-      left: 12px;
-      font-size: 8px;
-      color: rgba(0,255,136,0.55);
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      font-family: 'Orbitron', sans-serif;
-    }
-
-    /* ---- TWO COLUMN LAYOUT ---- */
-    .two-col {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-
-    /* ---- SECTION CARD ---- */
-    .card {
-      background: rgba(255,255,255,0.03);
-      border: 1px solid rgba(0,255,136,0.15);
-      border-radius: 10px;
-      padding: 12px 14px;
-    }
-
-    .card-title {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 9px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 2px;
-      color: #00ff88;
-      margin-bottom: 10px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid rgba(0,255,136,0.2);
-    }
-
-    /* ---- PARAM TABLE ---- */
-    .param-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 6px;
-      font-size: 9px;
-    }
-
-    .param-name {
-      color: rgba(255,255,255,0.55);
-      letter-spacing: 0.5px;
-    }
-
-    .param-val {
-      font-weight: 700;
-      color: #00d4ff;
-      font-size: 10px;
-      text-align: right;
-    }
-
-    .param-unit {
-      font-size: 8px;
-      color: rgba(255,255,255,0.35);
-      margin-left: 2px;
-    }
-
-    /* ---- RESULTS GRID ---- */
-    .results-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .result-tile {
-      background: linear-gradient(135deg, rgba(0,255,136,0.07), rgba(0,212,255,0.07));
-      border: 1px solid rgba(0,255,136,0.2);
-      border-radius: 8px;
-      padding: 10px 11px;
-      position: relative;
-    }
-
-    .result-tile::after {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 2px;
-      background: linear-gradient(90deg, #00ff88, #00d4ff);
-      border-radius: 8px 8px 0 0;
-    }
-
-    .result-label {
-      font-size: 7.5px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: rgba(255,255,255,0.4);
-      margin-bottom: 5px;
-    }
-
-    .result-val {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 16px;
-      font-weight: 700;
-      color: #00ff88;
-      line-height: 1.1;
-    }
-
-    .result-val .u {
-      font-size: 9px;
-      color: rgba(255,255,255,0.35);
-      margin-left: 2px;
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    /* ---- FORMULA BOX ---- */
-    .formula-box {
-      background: rgba(0,212,255,0.05);
-      border-left: 3px solid #00d4ff;
-      border-radius: 6px;
-      padding: 10px 12px;
-      font-size: 9px;
-      line-height: 1.7;
-      color: rgba(255,255,255,0.7);
-      margin-bottom: 12px;
-    }
-
-    .formula-box strong {
-      color: #00d4ff;
-      font-size: 9px;
-      display: block;
-      margin-bottom: 4px;
-    }
-
-    /* ---- FOOTER ---- */
-    .footer {
-      border-top: 1px solid rgba(255,255,255,0.08);
-      margin-top: 10px;
-      padding-top: 8px;
-      display: flex;
-      justify-content: space-between;
-      font-size: 7.5px;
-      color: rgba(255,255,255,0.25);
-      letter-spacing: 1px;
-    }
-
-    @media print {
-      @page { size: A4; margin: 0; }
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .page { width: 100%; padding: 10mm 12mm; }
-    }
-  </style>
-</head>
-<body>
-<div class="page">
-
-  <!-- HEADER -->
-  <div class="header">
-    <div class="header-left">
-      <h1>GECKO ADHESION PHYSICS</h1>
-      <p>Organic Paw Model · Van der Waals Simulation Report</p>
-    </div>
-    <div class="header-right">
-      <div class="timestamp">${m.timestamp}</div>
-      <div class="state-pill">${m.adhesionState}</div>
-    </div>
-  </div>
-
-  <!-- 3D MODEL SNAPSHOT -->
-  <div class="canvas-wrap">
-    <img src="${canvasImg}" alt="3D Gecko Paw Model">
-    <div class="canvas-label">3D Model · Current View</div>
-  </div>
-
-  <!-- RESULTS ROW -->
-  <div class="results-grid">
-    <div class="result-tile">
-      <div class="result-label">Spatula Force</div>
-      <div class="result-val">${m.spatulaForce}<span class="u">nN</span></div>
-    </div>
-    <div class="result-tile">
-      <div class="result-label">Seta Force</div>
-      <div class="result-val">${m.setaForce}<span class="u">μN</span></div>
-    </div>
-    <div class="result-tile">
-      <div class="result-label">Total Force</div>
-      <div class="result-val">${m.totalForce}<span class="u">N</span></div>
-    </div>
-    <div class="result-tile">
-      <div class="result-label">Contact Area</div>
-      <div class="result-val">${m.contactArea}<span class="u">mm²</span></div>
-    </div>
-    <div class="result-tile">
-      <div class="result-label">Load Capacity</div>
-      <div class="result-val">${m.loadCapacity}<span class="u">kg</span></div>
-    </div>
-    <div class="result-tile">
-      <div class="result-label">Adhesion Efficiency</div>
-      <div class="result-val">${m.effTotal}<span class="u">%</span></div>
-    </div>
-  </div>
-
-  <!-- PARAMS + FORMULA -->
-  <div class="two-col">
-
-    <div>
-      <!-- BIOLOGICAL PARAMS -->
-      <div class="card" style="margin-bottom:10px">
-        <div class="card-title">🧬 Biological Parameters</div>
-        <div class="param-row">
-          <span class="param-name">Setae Density</span>
-          <span class="param-val">${m.density.toLocaleString()}<span class="param-unit">/ mm²</span></span>
-        </div>
-        <div class="param-row">
-          <span class="param-name">Spatulae / Seta</span>
-          <span class="param-val">${m.spatulae}<span class="param-unit">branches</span></span>
-        </div>
-        <div class="param-row">
-          <span class="param-name">Lamellae Count</span>
-          <span class="param-val">${m.lamellaeCount}<span class="param-unit">ridges</span></span>
-        </div>
-        <div class="param-row">
-          <span class="param-name">Toe Pad Area</span>
-          <span class="param-val">${m.padArea}<span class="param-unit">mm²</span></span>
-        </div>
-      </div>
-
-      <!-- PHYSICS PARAMS -->
-      <div class="card">
-        <div class="card-title">⚛️ Physics Parameters</div>
-        <div class="param-row">
-          <span class="param-name">Contact Angle</span>
-          <span class="param-val">${m.angle}<span class="param-unit">°</span></span>
-        </div>
-        <div class="param-row">
-          <span class="param-name">Separation Distance</span>
-          <span class="param-val">${m.distance}<span class="param-unit">nm</span></span>
-        </div>
-        <div class="param-row">
-          <span class="param-name">Hamaker Constant</span>
-          <span class="param-val">${m.hamaker}<span class="param-unit">× 10⁻²⁰ J</span></span>
-        </div>
-        <div class="param-row">
-          <span class="param-name">Surface Roughness</span>
-          <span class="param-val">${m.roughness}</span>
-        </div>
-        <div class="param-row">
-          <span class="param-name">Contact Efficiency</span>
-          <span class="param-val">${m.efficiency}<span class="param-unit">%</span></span>
-        </div>
-      </div>
-    </div>
-
-    <div>
-      <!-- FORMULA -->
-      <div class="formula-box" style="margin-bottom:10px">
-        <strong>Van der Waals Force Formula</strong>
-        F = (A × H) / (6π × d³)<br><br>
-        <strong>Where:</strong><br>
-        A = Spatula contact area (~40,000 nm²)<br>
-        H = Hamaker constant (${m.hamaker} × 10⁻²⁰ J)<br>
-        d = Separation distance (${m.distance} nm)<br><br>
-        <strong>Efficiency Factors:</strong><br>
-        Distance eff. × Angle eff. × Roughness eff. = <strong style="color:#00ff88">${m.effTotal}%</strong>
-      </div>
-
-      <!-- REFERENCES -->
-      <div class="card">
-        <div class="card-title">📚 Key References</div>
-        <div class="param-row" style="display:block; margin-bottom:7px; font-size:8px; line-height:1.5; color:rgba(255,255,255,0.5)">
-          Autumn et al., <em>Nature</em> 405:681-685, 2000<br>
-          Autumn et al., <em>PNAS</em> 99:12252-12256, 2002<br>
-          Hansen & Autumn, <em>PNAS</em> 102:385-389, 2005<br>
-          Huber et al., <em>PNAS</em> 102:16293-16296, 2005<br>
-          Irschick et al., <em>Biol J Linn Soc</em> 59:21-35, 1996
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- FOOTER -->
-  <div class="footer">
-    <span>GECKO ADHESION PHYSICS SIMULATOR</span>
-    <span>Van der Waals · Organic Paw Model</span>
-    <span>Generated: ${m.timestamp}</span>
-  </div>
-
+    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>Gecko Adhesion Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;900&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Space Mono',monospace;background:#080c1e;color:#f0f4ff;padding:0}
+.page{width:210mm;min-height:297mm;margin:0 auto;background:#080c1e;padding:14mm 16mm}
+h1{font-family:'Syne',sans-serif;font-size:22px;font-weight:900;color:${sc};letter-spacing:2px}
+.sub{font-size:9px;color:rgba(240,244,255,0.35);letter-spacing:2px;margin-top:4px;text-transform:uppercase}
+.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid ${sc}40;margin-bottom:16px;padding-bottom:12px}
+.pill{display:inline-block;padding:5px 18px;border-radius:20px;border:1.5px solid ${sc};color:${sc};font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px}
+.snap{width:100%;border-radius:10px;overflow:hidden;border:1px solid ${sc}33;margin-bottom:16px;background:#0d1232}
+.snap img{width:100%;display:block;max-height:88mm;object-fit:cover}
+.rg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.rt{background:${sc}0d;border:1px solid ${sc}33;border-radius:8px;padding:12px;position:relative}
+.rt::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:${sc};border-radius:8px 8px 0 0}
+.rl{font-size:8px;color:rgba(240,244,255,0.35);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
+.rv{font-family:'Syne',sans-serif;font-size:20px;font-weight:900;color:${sc}}
+.ru{font-size:9px;color:rgba(240,244,255,0.3);margin-left:2px;font-family:'Space Mono',monospace;font-weight:400}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:9px;padding:13px 15px}
+.ct{font-family:'Syne',sans-serif;font-size:9px;font-weight:700;letter-spacing:2px;color:${sc};text-transform:uppercase;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid ${sc}30}
+.pr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;font-size:9px}
+.pn{color:rgba(240,244,255,0.45)}.pv{color:#00d4ff;font-weight:700;font-size:10px}
+.fb{background:rgba(0,212,255,0.05);border-left:3px solid #00d4ff;border-radius:6px;padding:11px 13px;font-size:9px;line-height:1.7;color:rgba(240,244,255,0.65)}
+.fb strong{color:#00d4ff;display:block;margin-bottom:4px}
+.foot{border-top:1px solid rgba(255,255,255,0.07);margin-top:10px;padding-top:9px;display:flex;justify-content:space-between;font-size:8px;color:rgba(240,244,255,0.2);letter-spacing:1px}
+@media print{@page{size:A4;margin:0}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{width:100%;padding:10mm 12mm}}
+</style></head><body><div class="page">
+<div class="header">
+  <div><h1>GECKO ADHESION PHYSICS</h1><div class="sub">Organic Paw Model · Van der Waals Simulation Report · ${m.timestamp}</div></div>
+  <div><div class="pill">${m.adhesionState}</div></div>
 </div>
+<div class="snap"><img src="${img}" alt="3D View"></div>
+<div class="rg">
+  <div class="rt"><div class="rl">Spatula Force</div><div class="rv">${m.spatulaForce}<span class="ru">nN</span></div></div>
+  <div class="rt"><div class="rl">Seta Force</div><div class="rv">${m.setaForce}<span class="ru">μN</span></div></div>
+  <div class="rt"><div class="rl">Total Force</div><div class="rv">${m.totalForce}<span class="ru">N</span></div></div>
+  <div class="rt"><div class="rl">Contact Area</div><div class="rv">${m.contactArea}<span class="ru">mm²</span></div></div>
+  <div class="rt"><div class="rl">Load Capacity</div><div class="rv">${m.loadCapacity}<span class="ru">kg</span></div></div>
+  <div class="rt"><div class="rl">Efficiency</div><div class="rv">${m.effPct}<span class="ru">%</span></div></div>
+</div>
+<div class="two">
+  <div>
+    <div class="card" style="margin-bottom:10px">
+      <div class="ct">🧬 Biological</div>
+      <div class="pr"><span class="pn">Setae Density</span><span class="pv">${m.density.toLocaleString()} /mm²</span></div>
+      <div class="pr"><span class="pn">Spatulae/Seta</span><span class="pv">${m.spatulae}</span></div>
+      <div class="pr"><span class="pn">Lamellae</span><span class="pv">${m.lamCount}</span></div>
+      <div class="pr"><span class="pn">Toe Pad Area</span><span class="pv">${m.padArea} mm²</span></div>
+    </div>
+    <div class="card">
+      <div class="ct">⚛️ Physics</div>
+      <div class="pr"><span class="pn">Contact Angle</span><span class="pv">${m.angle}°</span></div>
+      <div class="pr"><span class="pn">Separation</span><span class="pv">${m.distance} nm</span></div>
+      <div class="pr"><span class="pn">Hamaker Const.</span><span class="pv">${m.hamaker}×10⁻²⁰ J</span></div>
+      <div class="pr"><span class="pn">Roughness</span><span class="pv">${m.roughness}</span></div>
+      <div class="pr"><span class="pn">Contact Eff.</span><span class="pv">${m.efficiency}%</span></div>
+    </div>
+  </div>
+  <div>
+    <div class="fb" style="margin-bottom:10px">
+      <strong>Van der Waals Formula</strong>
+      F = (A × H) / (6π × d³)<br><br>
+      A = ${(SPATULA_AREA*1e18).toFixed(0)}×10⁻¹⁸ m² &nbsp; H = ${m.hamaker}×10⁻²⁰ J &nbsp; d = ${m.distance} nm<br><br>
+      <strong>Overall Efficiency: <span style="color:${sc}">${m.effPct}%</span></strong>
+    </div>
+    <div class="card">
+      <div class="ct">📚 References</div>
+      <div style="font-size:8px;line-height:1.8;color:rgba(240,244,255,0.4)">
+        Autumn et al., <em>Nature</em> 405:681-685, 2000<br>
+        Autumn et al., <em>PNAS</em> 99:12252, 2002<br>
+        Hansen & Autumn, <em>PNAS</em> 102:385, 2005<br>
+        Huber et al., <em>PNAS</em> 102:16293, 2005<br>
+        Irschick et al., <em>Biol J Linn Soc</em> 59:21, 1996
+      </div>
+    </div>
+  </div>
+</div>
+<div class="foot"><span>GECKO ADHESION PHYSICS SIMULATOR</span><span>Van der Waals · Organic Paw Model</span><span>${m.timestamp}</span></div>
+</div>
+<script>window.onload=()=>{setTimeout(()=>{window.print();},400);window.onafterprint=()=>window.close();}<\/script>
+</body></html>`;
 
-<script>
-  window.onload = function() {
-    setTimeout(() => { window.print(); }, 400);
-    window.onafterprint = function() { window.close(); };
-  };
-<\/script>
-</body>
-</html>`;
-
-    const printWin = window.open('', '_blank', 'width=900,height=700');
-    if (printWin) {
-      printWin.document.write(printHTML);
-      printWin.document.close();
-    } else {
-      alert('Please allow pop-ups to save the PDF report.');
-    }
-
-    btn.classList.remove('printing');
-    btn.textContent = '🖨️';
+    const w=window.open('','_blank','width=960,height=720');
+    if(w){w.document.write(html);w.document.close();}
+    else alert('Allow pop-ups to generate PDF.');
   }, 200);
 }
 
-// ============ EVENT LISTENERS ============
-function setupEventListeners() {
-  const sliders = ['density', 'spatulae', 'lamellae', 'padArea', 'angle', 
-                   'distance', 'hamaker', 'roughness', 'efficiency'];
-  sliders.forEach(id => {
-    document.getElementById(id).addEventListener('input', updateSimulation);
-  });
-
-  document.getElementById('toggleGrid').addEventListener('change', (e) => {
-    gridHelper.visible = e.target.checked;
-  });
-
-  document.getElementById('toggleSetae').addEventListener('change', (e) => {
-    setaeGroups.forEach(group => group.visible = e.target.checked);
-  });
-
-  document.getElementById('toggleLamellae').addEventListener('change', (e) => {
-    lamellaeGroups.forEach(group => group.visible = e.target.checked);
-  });
-
-  document.getElementById('toggleForces').addEventListener('change', (e) => {
-    forceArrows.forEach(arrow => arrow.visible = e.target.checked);
-  });
-
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
-}
-
-// ============ UI FUNCTIONS ============
-function togglePanel(type) {
-  const panel = type === 'control' 
-    ? document.getElementById('controlPanel')
-    : document.getElementById('infoPanel');
-  const btn = type === 'control'
-    ? document.getElementById('btnParams')
-    : document.getElementById('btnInfo');
-  
-  panel.classList.toggle('collapsed');
-  btn.classList.toggle('active');
-}
-
-function resetSimulation() {
-  document.getElementById('density').value = 14400;
-  document.getElementById('spatulae').value = 100;
-  document.getElementById('lamellae').value = 18;
-  document.getElementById('padArea').value = 100;
-  document.getElementById('angle').value = 30;
-  document.getElementById('distance').value = 0.30;
-  document.getElementById('hamaker').value = 5.0;
-  document.getElementById('roughness').value = 1;
-  document.getElementById('efficiency').value = 5;
-  updateSimulation();
-}
-
-// ============ START ============
 window.addEventListener('load', init);
-
-window.addEventListener('beforeunload', () => {
-  if (animationFrameId) cancelAnimationFrame(animationFrameId);
-  if (renderer) renderer.dispose();
+window.addEventListener('beforeunload', ()=>{
+  if(animFrameId) cancelAnimationFrame(animFrameId);
+  if(renderer) renderer.dispose();
 });
 </script>
-
 </body>
 </html>
