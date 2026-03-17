@@ -5,1444 +5,1160 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gecko Adhesion Physics — Desktop Lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@700;800;900&display=swap" rel="stylesheet">
-
 <style>
-/* ═══════════════════════════════════════════════
-   ROOT VARIABLES — switch dynamically via JS
-═══════════════════════════════════════════════ */
-:root {
-  --state-hue: 145;          /* green=145, red=0 */
-  --accent: #00ff88;
-  --accent-glow: rgba(0,255,136,0.25);
-  --accent-border: rgba(0,255,136,0.22);
-  --accent-bg: rgba(0,255,136,0.06);
-  --accent-dim: rgba(0,255,136,0.45);
-  --danger: #ff4040;
-  --bg: #080c1e;
-  --panel-bg: rgba(8,12,30,0.98);
-  --text: #f0f4ff;
-  --text-dim: rgba(240,244,255,0.55);
-  --text-muted: rgba(240,244,255,0.28);
-  --border: rgba(255,255,255,0.07);
-  --seam: rgba(255,255,255,0.04);
-}
-
-/* ─── ADHERED STATE ─── */
-body.adhered {
-  --accent: #00ff88;
-  --accent-glow: rgba(0,255,136,0.2);
-  --accent-border: rgba(0,255,136,0.25);
-  --accent-bg: rgba(0,255,136,0.06);
-  --accent-dim: rgba(0,255,136,0.45);
-}
-
-/* ─── DETACHING STATE ─── */
-body.detaching {
-  --accent: #ff4040;
-  --accent-glow: rgba(255,64,64,0.2);
-  --accent-border: rgba(255,64,64,0.25);
-  --accent-bg: rgba(255,64,64,0.06);
-  --accent-dim: rgba(255,64,64,0.45);
-}
-
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
-body {
-  font-family: 'Space Mono', monospace;
-  background: var(--bg);
-  color: var(--text);
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  transition: background 0.5s;
-}
-
-/* ═══════════════════════════════════════════════
-   TOP NAV BAR
-═══════════════════════════════════════════════ */
-.topbar {
-  height: 54px;
-  min-height: 54px;
-  background: rgba(6,9,22,0.97);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 24px;
-  gap: 20px;
-  z-index: 200;
-  transition: border-color 0.5s;
-  box-shadow: 0 1px 0 var(--accent-border);
-}
-
-.topbar-brand {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-.brand-name {
-  font-family: 'Syne', sans-serif;
-  font-size: 17px;
-  font-weight: 900;
-  letter-spacing: 0.5px;
-  color: var(--accent);
-  text-shadow: 0 0 18px var(--accent-glow);
-  transition: color 0.5s, text-shadow 0.5s;
-}
-
-.brand-sub {
-  font-size: 9px;
-  color: var(--text-muted);
-  letter-spacing: 2.5px;
-  text-transform: uppercase;
-}
-
-/* STATE INDICATOR — top bar center */
-.state-indicator-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 22px;
-  border-radius: 30px;
-  border: 1.5px solid var(--accent-border);
-  background: var(--accent-bg);
-  transition: all 0.4s;
-}
-
-.state-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent-glow);
-  animation: blink 1.8s ease-in-out infinite;
-  transition: background 0.4s, box-shadow 0.4s;
-}
-
-@keyframes blink {
-  0%,100% { opacity:1; transform:scale(1); }
-  50% { opacity:0.5; transform:scale(0.8); }
-}
-
-.state-label {
-  font-family: 'Syne', sans-serif;
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 3px;
-  color: var(--accent);
-  text-transform: uppercase;
-  transition: color 0.4s;
-}
-
-.state-eff {
-  font-size: 11px;
-  color: var(--text-dim);
-  font-style: italic;
-}
-
-.topbar-actions {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.top-btn {
-  height: 36px;
-  padding: 0 16px;
-  border-radius: 8px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid var(--border);
-  color: var(--text-dim);
-  font-family: 'Space Mono', monospace;
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.25s;
-  white-space: nowrap;
-}
-
-.top-btn:hover {
-  background: var(--accent-bg);
-  border-color: var(--accent-border);
-  color: var(--accent);
-}
-
-/* ═══════════════════════════════════════════════
-   MAIN 3-COLUMN LAYOUT
-═══════════════════════════════════════════════ */
-.workspace {
-  flex: 1;
-  display: grid;
-  grid-template-columns: 320px 1fr 300px;
-  min-height: 0;
-  overflow: hidden;
-}
-
-/* ═══════════════════════════════════════════════
-   SIDE PANELS
-═══════════════════════════════════════════════ */
-.side-panel {
-  background: var(--panel-bg);
-  overflow-y: auto;
-  overflow-x: hidden;
-  display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--border);
-  transition: border-color 0.5s;
-}
-
-.side-panel.right {
-  border-right: none;
-  border-left: 1px solid var(--border);
-}
-
-.side-panel::-webkit-scrollbar { width: 4px; }
-.side-panel::-webkit-scrollbar-track { background: transparent; }
-.side-panel::-webkit-scrollbar-thumb {
-  background: var(--accent-dim);
-  border-radius: 2px;
-}
-
-/* Panel top label */
-.panel-tag {
-  padding: 14px 20px 10px;
-  font-size: 9px;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--seam);
-  font-family: 'Syne', sans-serif;
-  font-weight: 700;
-}
-
-/* ─── Section header ─── */
-.section {
-  padding: 18px 20px 8px;
-  border-bottom: 1px solid var(--seam);
-}
-
-.section:last-child { border-bottom: none; }
-
-.section-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.section-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  transition: all 0.5s;
-}
-
-.section-title {
-  font-family: 'Syne', sans-serif;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 2px;
-  color: var(--accent);
-  text-transform: uppercase;
-  transition: color 0.5s;
-}
-
-/* ─── Slider controls ─── */
-.control-row {
-  margin-bottom: 18px;
-}
-
-.ctrl-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: 8px;
-}
-
-.ctrl-name {
-  font-size: 11px;
-  color: var(--text-dim);
-  letter-spacing: 0.3px;
-}
-
-.ctrl-val {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent);
-  transition: color 0.4s;
-}
-
-.ctrl-unit {
-  font-size: 9px;
-  color: var(--text-muted);
-  margin-left: 3px;
-}
-
-/* ─── Custom slider ─── */
-input[type="range"] {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 4px;
-  border-radius: 2px;
-  background: rgba(255,255,255,0.08);
-  outline: none;
-  cursor: pointer;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--accent);
-  cursor: grab;
-  box-shadow: 0 0 12px var(--accent-glow);
-  transition: background 0.4s, box-shadow 0.4s, transform 0.15s;
-}
-
-input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.25); }
-input[type="range"]::-webkit-slider-thumb:active { cursor: grabbing; }
-
-input[type="range"]::-moz-range-thumb {
-  width: 18px; height: 18px; border-radius: 50%;
-  background: var(--accent); cursor: grab; border: none;
-  box-shadow: 0 0 12px var(--accent-glow);
-}
-
-/* ─── Toggle rows ─── */
-.toggle-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--seam);
-  font-size: 11px;
-  color: var(--text-dim);
-}
-
-.toggle-row:last-child { border-bottom: none; }
-
-.sw {
-  position: relative; width: 44px; height: 24px;
-}
-
-.sw input { opacity:0; width:0; height:0; }
-
-.sw-track {
-  position: absolute; inset: 0;
-  background: rgba(255,255,255,0.1);
-  border-radius: 12px;
-  cursor: pointer;
-  border: 1px solid rgba(255,255,255,0.1);
-  transition: 0.3s;
-}
-
-.sw-track::after {
-  content: '';
-  position: absolute;
-  width: 17px; height: 17px;
-  border-radius: 50%;
-  background: white;
-  left: 3px; top: 3px;
-  transition: 0.3s;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.4);
-}
-
-.sw input:checked + .sw-track {
-  background: var(--accent);
-  border-color: var(--accent);
-  box-shadow: 0 0 12px var(--accent-glow);
-}
-
-.sw input:checked + .sw-track::after {
-  transform: translateX(20px);
-}
-
-/* ═══════════════════════════════════════════════
-   METRICS PANEL (RIGHT)
-═══════════════════════════════════════════════ */
-
-/* Big live metric card */
-.metric-hero {
-  margin: 0 20px 12px;
-  padding: 18px 20px;
-  background: var(--accent-bg);
-  border: 1.5px solid var(--accent-border);
-  border-radius: 12px;
-  transition: all 0.4s;
-  position: relative;
-  overflow: hidden;
-}
-
-.metric-hero::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--accent), transparent);
-  transition: background 0.4s;
-}
-
-.metric-hero-label {
-  font-size: 9px;
-  letter-spacing: 2px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  margin-bottom: 6px;
-  font-family: 'Syne', sans-serif;
-}
-
-.metric-hero-val {
-  font-family: 'Syne', sans-serif;
-  font-size: 36px;
-  font-weight: 900;
-  line-height: 1;
-  color: var(--accent);
-  text-shadow: 0 0 30px var(--accent-glow);
-  transition: color 0.4s, text-shadow 0.4s;
-}
-
-.metric-hero-unit {
-  font-size: 13px;
-  color: var(--text-muted);
-  font-weight: 400;
-  font-family: 'Space Mono', monospace;
-  margin-left: 4px;
-}
-
-.metric-hero-sub {
-  margin-top: 4px;
-  font-size: 10px;
-  color: var(--text-dim);
-  font-style: italic;
-}
-
-/* Small metric grid */
-.metric-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding: 0 20px 18px;
-}
-
-.metric-cell {
-  padding: 12px 14px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  transition: border-color 0.4s;
-}
-
-.metric-cell:hover {
-  border-color: var(--accent-border);
-  background: var(--accent-bg);
-}
-
-.mc-label {
-  font-size: 8px;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 6px;
-  font-family: 'Syne', sans-serif;
-}
-
-.mc-val {
-  font-family: 'Syne', sans-serif;
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--accent);
-  transition: color 0.4s;
-  line-height: 1;
-}
-
-.mc-unit {
-  font-size: 9px;
-  color: var(--text-muted);
-  font-family: 'Space Mono', monospace;
-  font-weight: 400;
-  margin-left: 2px;
-}
-
-/* Efficiency bar */
-.eff-bar-wrap {
-  margin: 0 20px 18px;
-  padding: 14px 16px;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid var(--border);
-  border-radius: 9px;
-}
-
-.eff-bar-label {
-  display: flex;
-  justify-content: space-between;
-  font-size: 9px;
-  color: var(--text-muted);
-  margin-bottom: 10px;
-  letter-spacing: 1px;
-  font-family: 'Syne', sans-serif;
-}
-
-.eff-bar-pct {
-  color: var(--accent);
-  font-weight: 700;
-  font-size: 11px;
-  transition: color 0.4s;
-}
-
-.eff-track {
-  height: 6px;
-  background: rgba(255,255,255,0.07);
-  border-radius: 3px;
-  overflow: hidden;
-}
-
-.eff-fill {
-  height: 100%;
-  border-radius: 3px;
-  background: linear-gradient(90deg, var(--accent), rgba(0,212,255,0.8));
-  transition: width 0.4s cubic-bezier(0.4,0,0.2,1), background 0.4s;
-  box-shadow: 0 0 8px var(--accent-glow);
-}
-
-/* Factor breakdown */
-.factors {
-  padding: 0 20px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.factor-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 10px;
-}
-
-.factor-name {
-  width: 78px;
-  color: var(--text-dim);
-  flex-shrink: 0;
-}
-
-.factor-track {
-  flex: 1;
-  height: 4px;
-  background: rgba(255,255,255,0.07);
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.factor-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.4s, background 0.4s;
-}
-
-.factor-pct {
-  width: 36px;
-  text-align: right;
-  color: var(--text-dim);
-  font-size: 9px;
-}
-
-/* ═══════════════════════════════════════════════
-   CANVAS AREA (CENTER)
-═══════════════════════════════════════════════ */
-.canvas-wrap {
-  position: relative;
-  overflow: hidden;
-  background: radial-gradient(ellipse at top, #131c42, #080c1e);
-}
-
-#canvas-container {
-  width: 100%;
-  height: 100%;
-}
-
-#canvas-container canvas {
-  display: block;
-  width: 100% !important;
-  height: 100% !important;
-}
-
-/* State overlay glow on canvas edges */
-.canvas-glow {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: 0;
-  transition: box-shadow 0.5s;
-  box-shadow: inset 0 0 60px var(--accent-glow);
-}
-
-/* Controls hint overlay */
-.cam-hint {
-  position: absolute;
-  bottom: 18px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 20px;
-  pointer-events: none;
-  opacity: 0.45;
-}
-
-.cam-hint-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 9px;
-  color: var(--text-dim);
-  white-space: nowrap;
-}
-
-.cam-hint-key {
-  padding: 3px 8px;
-  background: rgba(255,255,255,0.07);
-  border-radius: 4px;
-  font-size: 8px;
-  border: 1px solid rgba(255,255,255,0.1);
-}
-
-/* ═══════════════════════════════════════════════
-   LOADING
-═══════════════════════════════════════════════ */
-.loading-screen {
-  position: fixed; inset: 0;
-  background: #080c1e;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  gap: 20px;
-}
-
-.loading-ring {
-  width: 56px; height: 56px;
-  border: 3px solid rgba(0,255,136,0.15);
-  border-top-color: #00ff88;
-  border-radius: 50%;
-  animation: spin 0.9s linear infinite;
-}
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.loading-txt {
-  font-family: 'Syne', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 4px;
-  color: #00ff88;
-  text-shadow: 0 0 20px rgba(0,255,136,0.4);
-}
-
-/* ═══════════════════════════════════════════════
-   RESET BUTTON
-═══════════════════════════════════════════════ */
-.reset-btn {
-  margin: 4px 20px 20px;
-  width: calc(100% - 40px);
-  padding: 12px;
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-border);
-  border-radius: 9px;
-  color: var(--accent);
-  font-family: 'Syne', sans-serif;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.25s;
-}
-
-.reset-btn:hover {
-  background: var(--accent);
-  color: #080c1e;
-  box-shadow: 0 0 20px var(--accent-glow);
-}
-
-/* Divider label */
-.divider-label {
-  padding: 10px 20px 6px;
-  font-size: 8px;
-  letter-spacing: 2.5px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  font-family: 'Syne', sans-serif;
-}
+/* ══════════════════════════════════════════
+   THREE-STATE THEME — switches via body class
+   sufficient  >50%  GREEN
+   marginal    20-50% ORANGE
+   insufficient <20% RED
+══════════════════════════════════════════ */
+:root{
+  --accent:#00ff88;--accent-glow:rgba(0,255,136,.22);
+  --accent-border:rgba(0,255,136,.20);--accent-bg:rgba(0,255,136,.055);
+  --accent-dim:rgba(0,255,136,.40);
+  --bg:#080c1e;--panel-bg:rgba(7,10,26,.99);
+  --text:#eef2ff;--text-dim:rgba(238,242,255,.52);
+  --text-muted:rgba(238,242,255,.26);--border:rgba(255,255,255,.065);
+  --seam:rgba(255,255,255,.038);
+}
+body.sufficient  {
+  --accent:#00e87a;--accent-glow:rgba(0,232,122,.24);
+  --accent-border:rgba(0,232,122,.22);--accent-bg:rgba(0,232,122,.058);
+  --accent-dim:rgba(0,232,122,.42);
+}
+body.marginal {
+  --accent:#ff9500;--accent-glow:rgba(255,149,0,.24);
+  --accent-border:rgba(255,149,0,.22);--accent-bg:rgba(255,149,0,.058);
+  --accent-dim:rgba(255,149,0,.42);
+}
+body.insufficient {
+  --accent:#ff3838;--accent-glow:rgba(255,56,56,.24);
+  --accent-border:rgba(255,56,56,.22);--accent-bg:rgba(255,56,56,.058);
+  --accent-dim:rgba(255,56,56,.42);
+}
+
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);height:100vh;width:100vw;overflow:hidden;display:flex;flex-direction:column}
+
+/* ── topbar ── */
+.topbar{height:52px;min-height:52px;background:rgba(5,8,20,.98);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 22px;gap:16px;z-index:200;box-shadow:0 1px 0 var(--accent-border);transition:box-shadow .45s}
+.brand{display:flex;align-items:baseline;gap:11px;flex-shrink:0}
+.brand-name{font-family:'Syne',sans-serif;font-size:16px;font-weight:900;color:var(--accent);text-shadow:0 0 16px var(--accent-glow);transition:color .4s,text-shadow .4s}
+.brand-sub{font-size:8.5px;color:var(--text-muted);letter-spacing:2.2px;text-transform:uppercase}
+
+/* state pill — coloured badge in topbar */
+.state-pill{display:flex;align-items:center;gap:10px;padding:7px 20px;border-radius:30px;border:1.5px solid var(--accent-border);background:var(--accent-bg);transition:all .4s}
+.state-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent),0 0 18px var(--accent-glow);animation:blink 1.7s ease-in-out infinite;transition:background .4s,box-shadow .4s}
+@keyframes blink{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.75)}}
+.state-label{font-family:'Syne',sans-serif;font-size:12px;font-weight:800;letter-spacing:2.8px;color:var(--accent);text-transform:uppercase;transition:color .4s}
+.state-eff{font-size:10.5px;color:var(--text-dim);font-style:italic}
+.top-actions{display:flex;gap:7px;flex-shrink:0}
+.top-btn{height:34px;padding:0 14px;border-radius:7px;background:rgba(255,255,255,.045);border:1px solid var(--border);color:var(--text-dim);font-family:'Space Mono',monospace;font-size:10.5px;cursor:pointer;transition:all .22s;white-space:nowrap}
+.top-btn:hover{background:var(--accent-bg);border-color:var(--accent-border);color:var(--accent)}
+
+/* ── 3-col layout ── */
+.workspace{flex:1;display:grid;grid-template-columns:318px 1fr 308px;min-height:0;overflow:hidden}
+.side{background:var(--panel-bg);overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;border-right:1px solid var(--border)}
+.side.right{border-right:none;border-left:1px solid var(--border)}
+.side::-webkit-scrollbar{width:3px}
+.side::-webkit-scrollbar-track{background:transparent}
+.side::-webkit-scrollbar-thumb{background:var(--accent-dim);border-radius:2px}
+.ptag{padding:13px 19px 9px;font-size:8.5px;letter-spacing:2.8px;text-transform:uppercase;color:var(--text-muted);border-bottom:1px solid var(--seam);font-family:'Syne',sans-serif;font-weight:700}
+.sec{padding:16px 19px 7px;border-bottom:1px solid var(--seam)}.sec:last-child{border-bottom:none}
+.sec-head{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+.sec-icon{width:26px;height:26px;border-radius:7px;background:var(--accent-bg);border:1px solid var(--accent-border);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0;transition:all .4s}
+.sec-title{font-family:'Syne',sans-serif;font-size:10.5px;font-weight:800;letter-spacing:1.8px;color:var(--accent);text-transform:uppercase;transition:color .4s}
+.ctrl{margin-bottom:16px}
+.ctrl-hdr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
+.ctrl-name{font-size:10.5px;color:var(--text-dim)}
+.ctrl-val{font-size:12.5px;font-weight:700;color:var(--accent);transition:color .4s}
+.ctrl-unit{font-size:8.5px;color:var(--text-muted);margin-left:2px}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:3px;border-radius:2px;background:rgba(255,255,255,.075);outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:17px;height:17px;border-radius:50%;background:var(--accent);cursor:grab;box-shadow:0 0 10px var(--accent-glow);transition:background .4s,box-shadow .4s,transform .13s}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.22)}
+input[type=range]::-webkit-slider-thumb:active{cursor:grabbing}
+input[type=range]::-moz-range-thumb{width:17px;height:17px;border-radius:50%;background:var(--accent);cursor:grab;border:none;box-shadow:0 0 10px var(--accent-glow)}
+.tog-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--seam);font-size:10.5px;color:var(--text-dim)}
+.tog-row:last-child{border-bottom:none}
+.sw{position:relative;width:42px;height:23px;flex-shrink:0}
+.sw input{opacity:0;width:0;height:0}
+.sw-t{position:absolute;inset:0;background:rgba(255,255,255,.09);border-radius:12px;cursor:pointer;border:1px solid rgba(255,255,255,.09);transition:.28s}
+.sw-t::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;background:white;left:3px;top:3px;transition:.28s;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.sw input:checked+.sw-t{background:var(--accent);border-color:var(--accent);box-shadow:0 0 10px var(--accent-glow)}
+.sw input:checked+.sw-t::after{transform:translateX(19px)}
+.reset-btn{margin:4px 19px 18px;width:calc(100% - 38px);padding:11px;background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:8px;color:var(--accent);font-family:'Syne',sans-serif;font-size:10.5px;font-weight:800;letter-spacing:1.8px;text-transform:uppercase;cursor:pointer;transition:all .22s}
+.reset-btn:hover{background:var(--accent);color:#080c1e;box-shadow:0 0 18px var(--accent-glow)}
+
+/* ── metrics ── */
+.m-hero{margin:0 19px 7px;padding:14px 16px;background:var(--accent-bg);border:1.5px solid var(--accent-border);border-radius:11px;transition:all .4s;position:relative;overflow:hidden}
+.m-hero::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),transparent);transition:background .4s}
+.m-hero-lbl{font-size:8.5px;letter-spacing:1.8px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;font-family:'Syne',sans-serif}
+.m-hero-val{font-family:'Syne',sans-serif;font-size:29px;font-weight:900;line-height:1;color:var(--accent);text-shadow:0 0 28px var(--accent-glow);transition:color .4s,text-shadow .4s}
+.m-hero-unit{font-size:11.5px;color:var(--text-muted);font-weight:400;font-family:'Space Mono',monospace;margin-left:3px}
+.m-hero-sub{margin-top:4px;font-size:9.5px;color:var(--text-dim);font-style:italic}
+.m-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:0 19px 11px}
+.m-cell{padding:9px 11px;background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:8px;transition:border-color .4s}
+.m-cell:hover{border-color:var(--accent-border);background:var(--accent-bg)}
+.mc-lbl{font-size:7.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px;font-family:'Syne',sans-serif}
+.mc-val{font-family:'Syne',sans-serif;font-size:15px;font-weight:800;color:var(--accent);transition:color .4s;line-height:1}
+.mc-unit{font-size:8.5px;color:var(--text-muted);font-family:'Space Mono',monospace;font-weight:400;margin-left:2px}
+.eff-wrap{margin:0 19px 11px;padding:11px 13px;background:rgba(255,255,255,.025);border:1px solid var(--border);border-radius:8px}
+.eff-lbl{display:flex;justify-content:space-between;font-size:8.5px;color:var(--text-muted);margin-bottom:8px;letter-spacing:.9px;font-family:'Syne',sans-serif}
+.eff-pct{color:var(--accent);font-weight:700;font-size:10.5px;transition:color .4s}
+.eff-track{height:5px;background:rgba(255,255,255,.065);border-radius:3px;overflow:hidden}
+.eff-fill{height:100%;border-radius:3px;transition:width .38s cubic-bezier(.4,0,.2,1),background .4s;box-shadow:0 0 7px var(--accent-glow)}
+.factors{padding:0 19px 11px;display:flex;flex-direction:column;gap:7px}
+.f-row{display:flex;align-items:center;gap:9px;font-size:9.5px}
+.f-name{width:72px;color:var(--text-dim);flex-shrink:0}
+.f-track{flex:1;height:3px;background:rgba(255,255,255,.065);border-radius:2px;overflow:hidden}
+.f-fill{height:100%;border-radius:2px;transition:width .38s,background .4s}
+.f-pct{width:34px;text-align:right;color:var(--text-dim);font-size:8.5px}
+.dlbl{padding:7px 19px 4px;font-size:7.5px;letter-spacing:2.2px;color:var(--text-muted);text-transform:uppercase;font-family:'Syne',sans-serif}
+
+/* ── science cards ── */
+.sci-card{margin:0 19px 11px;border-radius:10px;overflow:hidden;border:1px solid var(--accent-border);transition:border-color .4s}
+.sci-card-hdr{padding:10px 13px;background:var(--accent-bg);display:flex;align-items:center;gap:8px;transition:background .4s;border-bottom:1px solid var(--accent-border)}
+.sci-card-icon{font-size:13px;flex-shrink:0}
+.sci-card-title{font-family:'Syne',sans-serif;font-size:9.5px;font-weight:800;letter-spacing:1.8px;color:var(--accent);text-transform:uppercase;transition:color .4s}
+.sci-card-body{padding:11px 13px;background:rgba(255,255,255,.018);font-size:9.5px;line-height:1.65;color:var(--text-dim)}
+.sci-verdict{display:flex;align-items:flex-start;gap:8px;padding:9px 11px;border-radius:8px;background:var(--accent-bg);border:1px solid var(--accent-border);margin-bottom:9px;transition:all .4s}
+.sv-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.sv-body{font-size:9.5px;line-height:1.6;color:var(--text-dim)}
+.sv-body b{font-size:10.5px;display:block;margin-bottom:3px;transition:color .4s}
+.param-row{padding:7px 0;border-bottom:1px solid var(--seam);font-size:9px;line-height:1.55;color:var(--text-dim)}
+.param-row:last-child{border-bottom:none}
+.param-row .pn{color:var(--text);font-weight:700;font-size:9.5px}
+.param-row .pr{float:right;font-size:8px;color:var(--text-muted);font-style:italic}
+.anat-block{padding:10px 13px;font-size:9px;line-height:1.65;color:var(--text-dim);border-bottom:1px solid var(--seam)}
+.anat-block b{color:rgba(0,210,255,.82);font-weight:700}
+
+/* ── canvas ── */
+.canvas-wrap{position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 0%,#121b40,#080c1e)}
+#canvas-container{width:100%;height:100%}
+#canvas-container canvas{display:block;width:100%!important;height:100%!important}
+.canvas-glow{position:absolute;inset:0;pointer-events:none;transition:box-shadow .5s;box-shadow:inset 0 0 55px var(--accent-glow)}
+.zoom-badge{position:absolute;top:14px;left:50%;transform:translateX(-50%);padding:5px 15px;border-radius:20px;background:rgba(7,10,26,.9);border:1px solid var(--accent-border);font-family:'Syne',sans-serif;font-size:8.5px;letter-spacing:1.8px;color:var(--accent);text-transform:uppercase;pointer-events:none;transition:opacity .4s;opacity:0;white-space:nowrap}
+.zoom-badge.vis{opacity:1}
+.cam-hint{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:16px;pointer-events:none;opacity:.34}
+.ch-item{display:flex;align-items:center;gap:5px;font-size:8.5px;color:var(--text-dim);white-space:nowrap}
+.ch-key{padding:2px 7px;background:rgba(255,255,255,.065);border-radius:4px;font-size:7.5px;border:1px solid rgba(255,255,255,.09)}
+.loading{position:fixed;inset:0;background:#080c1e;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1000;gap:18px}
+.ld-ring{width:52px;height:52px;border:3px solid rgba(0,255,136,.12);border-top-color:#00ff88;border-radius:50%;animation:spin .85s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ld-txt{font-family:'Syne',sans-serif;font-size:12px;font-weight:700;letter-spacing:3.5px;color:#00ff88;text-shadow:0 0 18px rgba(0,255,136,.38)}
 </style>
 </head>
-<body class="adhered">
+<body class="sufficient">
 
-<!-- LOADING -->
-<div class="loading-screen" id="loadingScreen">
-  <div class="loading-ring"></div>
-  <div class="loading-txt">INITIALIZING GECKO ENGINE</div>
+<div class="loading" id="loadingScreen">
+  <div class="ld-ring"></div>
+  <div class="ld-txt">BUILDING GECKO ANATOMY</div>
 </div>
 
-<!-- ══════════════ TOP BAR ══════════════ -->
 <div class="topbar">
-  <div class="topbar-brand">
+  <div class="brand">
     <span class="brand-name">GECKO ADHESION</span>
     <span class="brand-sub">Van der Waals · Physics Lab</span>
   </div>
-
-  <div class="state-indicator-bar" id="stateBarGlobal">
-    <div class="state-dot" id="stateDot"></div>
-    <span class="state-label" id="stateLabelBar">ADHERED</span>
+  <div class="state-pill">
+    <div class="state-dot"></div>
+    <span class="state-label" id="stateLabelBar">SUFFICIENT</span>
     <span class="state-eff" id="stateEffBar">eff. 100%</span>
   </div>
-
-  <div class="topbar-actions">
+  <div class="top-actions">
     <button class="top-btn" onclick="resetSimulation()">↺ Reset</button>
-    <button class="top-btn" onclick="printReport()">⎙ PDF Report</button>
+    <button class="top-btn" onclick="printReport()">⎙ PDF</button>
   </div>
 </div>
 
-<!-- ══════════════ WORKSPACE ══════════════ -->
 <div class="workspace">
 
-  <!-- ══════════ LEFT: PARAMETERS ══════════ -->
-  <div class="side-panel">
-    <div class="panel-tag">Parameters</div>
-
-    <!-- ─ Biological ─ -->
-    <div class="section">
-      <div class="section-head">
-        <div class="section-icon">🧬</div>
-        <span class="section-title">Biological</span>
-      </div>
-
-      <div class="control-row">
-        <div class="ctrl-header">
-          <span class="ctrl-name">Setae Density</span>
-          <span><span class="ctrl-val" id="densityVal">14,400</span><span class="ctrl-unit">/ mm²</span></span>
-        </div>
+  <!-- LEFT PARAMS -->
+  <div class="side">
+    <div class="ptag">Parameters</div>
+    <div class="sec">
+      <div class="sec-head"><div class="sec-icon">🧬</div><span class="sec-title">Biological</span></div>
+      <div class="ctrl">
+        <div class="ctrl-hdr"><span class="ctrl-name">Setae Density</span><span><span class="ctrl-val" id="densityVal">14,400</span><span class="ctrl-unit">/ mm²</span></span></div>
         <input type="range" id="density" min="5000" max="20000" step="100" value="14400">
       </div>
-
-      <div class="control-row">
-        <div class="ctrl-header">
-          <span class="ctrl-name">Spatulae per Seta</span>
-          <span><span class="ctrl-val" id="spatulaeVal">100</span><span class="ctrl-unit">branches</span></span>
-        </div>
+      <div class="ctrl">
+        <div class="ctrl-hdr"><span class="ctrl-name">Spatulae per Seta</span><span><span class="ctrl-val" id="spatulaeVal">100</span><span class="ctrl-unit">branches</span></span></div>
         <input type="range" id="spatulae" min="50" max="1000" step="50" value="100">
       </div>
-
-      <div class="control-row">
-        <div class="ctrl-header">
-          <span class="ctrl-name">Lamellae Count</span>
-          <span><span class="ctrl-val" id="lamellaeVal">18</span><span class="ctrl-unit">ridges</span></span>
-        </div>
+      <div class="ctrl">
+        <div class="ctrl-hdr"><span class="ctrl-name">Lamellae Count</span><span><span class="ctrl-val" id="lamellaeVal">18</span><span class="ctrl-unit">ridges</span></span></div>
         <input type="range" id="lamellae" min="10" max="25" step="1" value="18">
       </div>
-
-      <div class="control-row">
-        <div class="ctrl-header">
-          <span class="ctrl-name">Toe Pad Area</span>
-          <span><span class="ctrl-val" id="padAreaVal">100</span><span class="ctrl-unit">mm²</span></span>
-        </div>
+      <div class="ctrl">
+        <div class="ctrl-hdr"><span class="ctrl-name">Toe Pad Area</span><span><span class="ctrl-val" id="padAreaVal">100</span><span class="ctrl-unit">mm²</span></span></div>
         <input type="range" id="padArea" min="50" max="200" step="5" value="100">
       </div>
     </div>
-
-    <!-- ─ Physics ─ -->
-    <div class="section">
-      <div class="section-head">
-        <div class="section-icon">⚛️</div>
-        <span class="section-title">Physics</span>
-      </div>
-
-      <div class="control-row">
-        <div class="ctrl-header">
-          <span class="ctrl-name">Contact Angle</span>
+    <div class="sec">
+      <div class="sec-head"><div class="sec-icon">⚛️</div><span class="sec-title">Physics</span></div>
+      <div class="ctrl">
+        <div class="ctrl-hdr">
+          <span class="ctrl-name">Contact Angle θ (seta–surface)</span>
           <span><span class="ctrl-val" id="angleVal">30</span><span class="ctrl-unit">°</span></span>
         </div>
+        <!-- 0° = seta flat on surface, 90° = seta perpendicular to surface -->
         <input type="range" id="angle" min="0" max="90" step="1" value="30">
       </div>
-
-      <div class="control-row">
-        <div class="ctrl-header">
-          <span class="ctrl-name">Separation Distance</span>
-          <span><span class="ctrl-val" id="distanceVal">0.30</span><span class="ctrl-unit">nm</span></span>
-        </div>
+      <div class="ctrl">
+        <div class="ctrl-hdr"><span class="ctrl-name">Separation Distance</span><span><span class="ctrl-val" id="distanceVal">0.30</span><span class="ctrl-unit">nm</span></span></div>
         <input type="range" id="distance" min="0.1" max="2.0" step="0.05" value="0.30">
       </div>
-
-      <div class="control-row">
-        <div class="ctrl-header">
-          <span class="ctrl-name">Hamaker Constant</span>
-          <span><span class="ctrl-val" id="hamakerVal">5.0</span><span class="ctrl-unit">×10⁻²⁰ J</span></span>
-        </div>
+      <div class="ctrl">
+        <div class="ctrl-hdr"><span class="ctrl-name">Hamaker Constant</span><span><span class="ctrl-val" id="hamakerVal">5.0</span><span class="ctrl-unit">×10⁻²⁰ J</span></span></div>
         <input type="range" id="hamaker" min="1" max="10" step="0.5" value="5.0">
       </div>
-
-      <div class="control-row">
-        <div class="ctrl-header">
-          <span class="ctrl-name">Surface Roughness</span>
-          <span class="ctrl-val" id="roughnessVal">Smooth</span>
-        </div>
+      <div class="ctrl">
+        <div class="ctrl-hdr"><span class="ctrl-name">Surface Roughness</span><span class="ctrl-val" id="roughnessVal">Smooth</span></div>
         <input type="range" id="roughness" min="1" max="5" step="1" value="1">
       </div>
-
-      <div class="control-row">
-        <div class="ctrl-header">
-          <span class="ctrl-name">Contact Efficiency</span>
-          <span><span class="ctrl-val" id="efficiencyVal">5.0</span><span class="ctrl-unit">%</span></span>
-        </div>
+      <div class="ctrl">
+        <div class="ctrl-hdr"><span class="ctrl-name">Contact Efficiency</span><span><span class="ctrl-val" id="efficiencyVal">5.0</span><span class="ctrl-unit">%</span></span></div>
         <input type="range" id="efficiency" min="1" max="20" step="1" value="5">
       </div>
     </div>
-
-    <!-- ─ Visualization Toggles ─ -->
-    <div class="section">
-      <div class="section-head">
-        <div class="section-icon">👁️</div>
-        <span class="section-title">Visualization</span>
-      </div>
-
-      <div class="toggle-row">
-        <span>Show Grid</span>
-        <label class="sw"><input type="checkbox" id="toggleGrid" checked><span class="sw-track"></span></label>
-      </div>
-      <div class="toggle-row">
-        <span>Show Setae</span>
-        <label class="sw"><input type="checkbox" id="toggleSetae" checked><span class="sw-track"></span></label>
-      </div>
-      <div class="toggle-row">
-        <span>Show Lamellae</span>
-        <label class="sw"><input type="checkbox" id="toggleLamellae" checked><span class="sw-track"></span></label>
-      </div>
-      <div class="toggle-row">
-        <span>Show Forces</span>
-        <label class="sw"><input type="checkbox" id="toggleForces" checked><span class="sw-track"></span></label>
-      </div>
-      <div class="toggle-row">
-        <span>Auto Rotate</span>
-        <label class="sw"><input type="checkbox" id="toggleRotate"><span class="sw-track"></span></label>
-      </div>
+    <div class="sec">
+      <div class="sec-head"><div class="sec-icon">👁️</div><span class="sec-title">Visualization</span></div>
+      <div class="tog-row"><span>Show Grid</span><label class="sw"><input type="checkbox" id="toggleGrid" checked><span class="sw-t"></span></label></div>
+      <div class="tog-row"><span>Show Setae &amp; Spatulae</span><label class="sw"><input type="checkbox" id="toggleSetae" checked><span class="sw-t"></span></label></div>
+      <div class="tog-row"><span>Show Lamellae</span><label class="sw"><input type="checkbox" id="toggleLamellae" checked><span class="sw-t"></span></label></div>
+      <div class="tog-row"><span>Show Force Arrows</span><label class="sw"><input type="checkbox" id="toggleForces" checked><span class="sw-t"></span></label></div>
+      <div class="tog-row"><span>Auto Rotate</span><label class="sw"><input type="checkbox" id="toggleRotate"><span class="sw-t"></span></label></div>
     </div>
-
     <button class="reset-btn" onclick="resetSimulation()">↺ Reset to Defaults</button>
   </div>
 
-  <!-- ══════════ CENTER: 3D CANVAS ══════════ -->
+  <!-- CANVAS -->
   <div class="canvas-wrap">
     <div id="canvas-container"></div>
-    <div class="canvas-glow" id="canvasGlow"></div>
+    <div class="canvas-glow"></div>
+    <div class="zoom-badge" id="zoomBadge">🔬 MICROSCOPIC — SETAE &amp; SPATULAE</div>
     <div class="cam-hint">
-      <div class="cam-hint-item"><span class="cam-hint-key">DRAG</span> Rotate</div>
-      <div class="cam-hint-item"><span class="cam-hint-key">RIGHT DRAG</span> Pan</div>
-      <div class="cam-hint-item"><span class="cam-hint-key">SCROLL</span> Zoom</div>
+      <div class="ch-item"><span class="ch-key">DRAG</span>Rotate</div>
+      <div class="ch-item"><span class="ch-key">R-DRAG</span>Pan</div>
+      <div class="ch-item"><span class="ch-key">SCROLL IN</span>Micro</div>
     </div>
   </div>
 
-  <!-- ══════════ RIGHT: METRICS ══════════ -->
-  <div class="side-panel right">
-    <div class="panel-tag">Live Metrics</div>
-
-    <!-- HERO: Total Force -->
-    <div style="padding: 14px 20px 0;">
-      <div class="metric-hero" id="heroCard">
-        <div class="metric-hero-label">Total Adhesion Force</div>
-        <div class="metric-hero-val" id="totalForce">0.00<span class="metric-hero-unit">N</span></div>
-        <div class="metric-hero-sub" id="heroSub">Calculating…</div>
+  <!-- RIGHT METRICS + SCIENCE -->
+  <div class="side right">
+    <div class="ptag">Live Metrics &amp; Science</div>
+    <div style="padding:12px 19px 0">
+      <div class="m-hero">
+        <div class="m-hero-lbl">Total Adhesion Force</div>
+        <div class="m-hero-val" id="totalForce">0.00<span class="m-hero-unit">N</span></div>
+        <div class="m-hero-sub" id="heroSub">Calculating…</div>
       </div>
     </div>
-
-    <!-- Load capacity hero -->
-    <div style="padding: 0 20px 14px;">
-      <div class="metric-hero" id="loadCard" style="margin:8px 0 0;">
-        <div class="metric-hero-label">Load Capacity</div>
-        <div class="metric-hero-val" id="loadCapacity">0.000<span class="metric-hero-unit">kg</span></div>
-        <div class="metric-hero-sub">Weight supportable by one pad</div>
+    <div style="padding:0 19px 10px">
+      <div class="m-hero" style="margin:7px 0 0">
+        <div class="m-hero-lbl">Load Capacity</div>
+        <div class="m-hero-val" id="loadCapacity">0.000<span class="m-hero-unit">kg</span></div>
+        <div class="m-hero-sub">Weight supportable per pad</div>
       </div>
     </div>
-
-    <!-- Smaller metrics 2×2 -->
-    <div class="metric-grid">
-      <div class="metric-cell">
-        <div class="mc-label">Spatula Force</div>
-        <div class="mc-val" id="spatulaForce">0.0<span class="mc-unit">nN</span></div>
-      </div>
-      <div class="metric-cell">
-        <div class="mc-label">Seta Force</div>
-        <div class="mc-val" id="setaForce">0.0<span class="mc-unit">μN</span></div>
-      </div>
-      <div class="metric-cell">
-        <div class="mc-label">Contact Area</div>
-        <div class="mc-val" id="contactArea">0.0<span class="mc-unit">mm²</span></div>
-      </div>
-      <div class="metric-cell">
-        <div class="mc-label">Total Setae</div>
-        <div class="mc-val" id="totalSetae">0<span class="mc-unit">k</span></div>
-      </div>
+    <div class="m-grid">
+      <div class="m-cell"><div class="mc-lbl">Spatula Force</div><div class="mc-val" id="spatulaForce">0.0<span class="mc-unit">nN</span></div></div>
+      <div class="m-cell"><div class="mc-lbl">Seta Force</div><div class="mc-val" id="setaForce">0.0<span class="mc-unit">μN</span></div></div>
+      <div class="m-cell"><div class="mc-lbl">Contact Area</div><div class="mc-val" id="contactArea">0.0<span class="mc-unit">mm²</span></div></div>
+      <div class="m-cell"><div class="mc-lbl">Total Setae</div><div class="mc-val" id="totalSetae">0<span class="mc-unit">k</span></div></div>
     </div>
-
-    <!-- Efficiency bar -->
-    <div class="eff-bar-wrap">
-      <div class="eff-bar-label">
-        <span>Adhesion Efficiency</span>
-        <span class="eff-bar-pct" id="effPct">100%</span>
-      </div>
-      <div class="eff-track">
-        <div class="eff-fill" id="effFill" style="width:100%"></div>
-      </div>
+    <div class="eff-wrap">
+      <div class="eff-lbl"><span>Adhesion Efficiency</span><span class="eff-pct" id="effPct">100%</span></div>
+      <div class="eff-track"><div class="eff-fill" id="effFill" style="width:100%"></div></div>
     </div>
-
-    <!-- Factor breakdown -->
-    <div class="divider-label">Efficiency Factors</div>
+    <div class="dlbl">Efficiency Factors</div>
     <div class="factors">
-      <div class="factor-row">
-        <span class="factor-name">Distance</span>
-        <div class="factor-track"><div class="factor-fill" id="fDist" style="width:100%; background: var(--accent)"></div></div>
-        <span class="factor-pct" id="fDistPct">100%</span>
+      <div class="f-row"><span class="f-name">Distance</span><div class="f-track"><div class="f-fill" id="fDist" style="width:100%"></div></div><span class="f-pct" id="fDistPct">100%</span></div>
+      <div class="f-row"><span class="f-name">Angle</span><div class="f-track"><div class="f-fill" id="fAngle" style="width:100%"></div></div><span class="f-pct" id="fAnglePct">100%</span></div>
+      <div class="f-row"><span class="f-name">Roughness</span><div class="f-track"><div class="f-fill" id="fRough" style="width:100%"></div></div><span class="f-pct" id="fRoughPct">100%</span></div>
+    </div>
+
+    <!-- Live Science Intel -->
+    <div class="dlbl" style="padding-top:10px">Live Science Intel</div>
+    <div style="padding:0 19px">
+      <div class="sci-verdict">
+        <div class="sv-icon" id="svIcon">🟢</div>
+        <div class="sv-body">
+          <b id="svTitle">SUFFICIENT — Strong van der Waals</b>
+          <span id="svBody">Spatula tips within optimal separation. Full London dispersion forces active across the lamellar array.</span>
+        </div>
       </div>
-      <div class="factor-row">
-        <span class="factor-name">Angle</span>
-        <div class="factor-track"><div class="factor-fill" id="fAngle" style="width:100%; background: var(--accent)"></div></div>
-        <span class="factor-pct" id="fAnglePct">100%</span>
+      <div class="sci-card" style="margin:0 0 11px">
+        <div class="sci-card-hdr"><span class="sci-card-icon">⚡</span><span class="sci-card-title" id="bnTitle">Limiting Factor</span></div>
+        <div class="sci-card-body" id="bnBody">All factors above threshold. Optimal adhesion conditions.</div>
       </div>
-      <div class="factor-row">
-        <span class="factor-name">Roughness</span>
-        <div class="factor-track"><div class="factor-fill" id="fRough" style="width:100%; background: var(--accent)"></div></div>
-        <span class="factor-pct" id="fRoughPct">100%</span>
+      <div class="sci-card" style="margin:0 0 11px">
+        <div class="sci-card-hdr"><span class="sci-card-icon">🔬</span><span class="sci-card-title">Current Physics State</span></div>
+        <div class="sci-card-body">
+          <span id="psLine1">F = (A·H)/(6π·d³) per spatula</span><br>
+          <span id="psLine2">d = 0.30 nm — peak zone</span><br>
+          <span id="psLine3">θ = 30° — shear regime</span><br>
+          <span id="psLine4">Surface: Smooth — full contact</span>
+        </div>
       </div>
     </div>
 
-    <!-- Science refs collapsed -->
-    <div style="margin: 4px 20px 20px;">
-      <details style="font-size:10px; color: var(--text-muted);">
-        <summary style="cursor:pointer; color: var(--text-dim); font-family:'Syne',sans-serif; font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; margin-bottom:8px;">📚 References</summary>
-        <div style="line-height:1.8; margin-top:8px; padding: 10px; background: rgba(255,255,255,0.03); border-radius:6px; border:1px solid var(--border);">
-          Autumn et al., <em>Nature</em> 405, 2000<br>
-          Autumn et al., <em>PNAS</em> 99, 2002<br>
-          Hansen & Autumn, <em>PNAS</em> 102, 2005<br>
-          Huber et al., <em>PNAS</em> 102, 2005<br>
-          Irschick et al., <em>Biol J Linn Soc</em> 59, 1996
+    <!-- Model info -->
+    <div class="dlbl" style="padding-top:2px">About This Model</div>
+    <div class="anat-block">
+      <b>Tokay Gecko (Gekko gecko)</b> — two-scale anatomy.<br><br>
+      <b>Contact angle θ</b> = angle between individual seta shaft and the substrate surface. 0° = seta lies flat along surface (maximum shear contact area). 30° = biological optimum. 90° = seta perpendicular to surface.<br><br>
+      <b>Visual:</b> Only the setae on each toe pad tilt — fingers/toes stay fixed. This is accurate: in real geckos, setae are dragged along the surface and the macroscopic toe geometry changes very little.<br><br>
+      <b>Mechanism:</b> Pure London dispersion (van der Waals) forces. No glue, no suction. Self-cleans via contact mechanics.
+    </div>
+
+    <!-- Parameter Glossary -->
+    <div class="dlbl" style="padding-top:4px">Parameter Science</div>
+    <div style="padding:4px 19px 6px">
+      <div class="param-row">
+        <span class="pn">Setae Density <span class="pr">5k–20k /mm²</span></span><br>
+        Tokay: ~14,400/mm² (Autumn 2002). Scales total force linearly. Physical ceiling ~20k from elastic array compliance. Green >10k, orange 7–10k, red &lt;7k.
+      </div>
+      <div class="param-row">
+        <span class="pn">Spatulae per Seta <span class="pr">50–1000</span></span><br>
+        Tokay avg ~100–1000 spatulae/seta (Autumn 2002). Each acts independently — statistical averaging gives stable adhesion. More spatulae = higher seta force.
+      </div>
+      <div class="param-row">
+        <span class="pn">Lamellae Count <span class="pr">10–25 ridges</span></span><br>
+        Ventral toe-pad ridges. Tokay: 18 per toe. Orient setae perpendicular to pull direction — maximises shear adhesion and distributes load.
+      </div>
+      <div class="param-row">
+        <span class="pn">Toe Pad Area <span class="pr">50–200 mm²</span></span><br>
+        Scales seta count proportionally. Full 4-foot contact: ~2000 mm². Theoretical max ~1440 N, measured ~133 N at 5% contact efficiency (Irschick 1996).
+      </div>
+      <div class="param-row">
+        <span class="pn">Contact Angle θ (seta–surface) <span class="pr">0–90°</span></span><br>
+        <span id="infoAngle">The angle between the seta shaft and the substrate. 0° = seta flat on surface (max contact area). ~30° = biological optimum (Autumn 2000) — best balance of contact area and directionality. Above 30°: peel onset. Above 50°: rapid detachment.</span><br>
+        <em style="font-size:8px;color:var(--text-muted)">Optimum: 15–30° | Threshold: 30° | Peel: &gt;50° (Autumn et al. 2000)</em>
+      </div>
+      <div class="param-row">
+        <span class="pn">Separation Distance <span class="pr">0.1–2.0 nm</span></span><br>
+        <span id="infoDist">van der Waals F ∝ 1/d³. Peak at 0.2–0.4 nm (~10 nN/spatula, Huber 2005). Beyond 0.6 nm: exponential decay. At 2 nm: effectively zero. Green &lt;0.4 nm, orange 0.4–0.7 nm, red &gt;0.7 nm.</span><br>
+        <em style="font-size:8px;color:var(--text-muted)">Optimal: 0.2–0.4 nm | Cutoff: ~0.6 nm (Huber et al. 2005)</em>
+      </div>
+      <div class="param-row">
+        <span class="pn">Hamaker Constant <span class="pr">1–10 ×10⁻²⁰ J</span></span><br>
+        β-keratin / glass: H ≈ 5×10⁻²⁰ J (Autumn 2002). Material property — force multiplier. Does not affect efficiency factors. Higher = stronger inherent vdW interaction.
+      </div>
+      <div class="param-row">
+        <span class="pn">Surface Roughness <span class="pr">Smooth→Rough</span></span><br>
+        <span id="infoRough">Each roughness step ×0.70 penalty (JKR contact mechanics). Rigid β-keratin spatulae cannot conform to asperities — reducing real contact area. Smooth glass: full adhesion. Sandpaper: near zero. Green lvl 1, orange lvl 2–3, red lvl 4–5.</span><br>
+        <em style="font-size:8px;color:var(--text-muted)">JKR model: ×0.70 per roughness step</em>
+      </div>
+      <div class="param-row">
+        <span class="pn">Contact Efficiency <span class="pr">1–20%</span></span><br>
+        Only ~5% of spatulae make simultaneous vdW contact (Hansen &amp; Autumn 2005). Accounts for spatial misalignment, elastic preload, surface wave propagation, and thermal vibration.
+      </div>
+    </div>
+
+    <!-- References -->
+    <div style="margin:4px 19px 22px">
+      <details style="font-size:9.5px;color:var(--text-muted)">
+        <summary style="cursor:pointer;color:var(--text-dim);font-family:'Syne',sans-serif;font-size:9.5px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">📚 References</summary>
+        <div style="line-height:1.85;margin-top:7px;padding:9px;background:rgba(255,255,255,.025);border-radius:6px;border:1px solid var(--border);font-size:8.5px">
+          Autumn et al. — Single-seta 194 µN, vdW mechanism.<br><em style="color:rgba(238,242,255,.22)">Nature 405:681–685, 2000</em><br><br>
+          Autumn et al. — Spatula structure, vdW confirmed.<br><em style="color:rgba(238,242,255,.22)">PNAS 99:12252–12256, 2002</em><br><br>
+          Hansen &amp; Autumn — 5% contact efficiency, self-cleaning.<br><em style="color:rgba(238,242,255,.22)">PNAS 102:385–389, 2005</em><br><br>
+          Huber et al. — Single spatula ~10 nN at d=0.3 nm.<br><em style="color:rgba(238,242,255,.22)">PNAS 102:16293–16296, 2005</em><br><br>
+          Irschick et al. — Whole-gecko ~133 N, safety factors.<br><em style="color:rgba(238,242,255,.22)">Biol J Linn Soc 59:21–35, 1996</em>
         </div>
       </details>
     </div>
+  </div>
+</div>
 
-  </div><!-- /right panel -->
-</div><!-- /workspace -->
-
-<!-- ══════════════════════════════════════════
-     THREE.JS SCRIPTS
-══════════════════════════════════════════════ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-
 <script>
-// ═══ GLOBALS ═══
+// ══════════════════════════════════════════════════════
+//  THREE-STATE THRESHOLDS  (based on peer-reviewed biology)
+//  Autumn et al. 2000, Hansen & Autumn 2005, Huber et al. 2005
+// ══════════════════════════════════════════════════════
+const THR_SUFFICIENT   = 0.50;  // eff.total > 0.50  → GREEN  (full adhesion, supports body weight)
+const THR_MARGINAL     = 0.20;  // eff.total 0.20–0.50 → ORANGE (partial adhesion, reduced safety margin)
+// eff.total < 0.20 → RED  (insufficient adhesion, cannot support body weight)
+
+// Per-factor colour thresholds (from literature):
+// Distance: <0.4 nm peak (green), 0.4–0.7 nm reduced (orange), >0.7 nm insufficient (red)
+// Angle: <30° shear (green), 30–50° peel onset (orange), >50° peeling (red)
+// Roughness: 1-2 acceptable (green), 3 marginal (orange), 4-5 failure (red)
+
+function factorColor(id, val) {
+  // Returns #hex color appropriate to the factor's biological regime
+  if (id === 'distance') {
+    return val >= 0.90 ? '#00e87a' : val >= 0.50 ? '#ff9500' : '#ff3838';
+  }
+  if (id === 'angle') {
+    return val >= 0.99 ? '#00e87a' : val >= 0.64 ? '#ff9500' : '#ff3838'; // cos(0)=1, cos(30)≈0.87, cos(50)≈0.64
+  }
+  if (id === 'roughness') {
+    return val >= 1.0 ? '#00e87a' : val >= 0.49 ? '#ff9500' : '#ff3838'; // 0.7^0=1, 0.7^1=0.7, 0.7^2=0.49
+  }
+  return val > 0.5 ? '#00e87a' : val > 0.2 ? '#ff9500' : '#ff3838';
+}
+
+// ══════════════════════════════════════════════════════
+//  GLOBALS
+// ══════════════════════════════════════════════════════
+const SETA_PER_PAD  = 2400;
+const SPATULA_AREA  = 200e-9 * 200e-9;
+const ROUGH_LABELS  = ['Smooth','Fine','Medium','Coarse','Rough'];
+
+const TOE_CFGS = [
+  {angle:-1.10, length:0.78},
+  {angle:-0.50, length:0.98},
+  {angle: 0.00, length:1.12},
+  {angle: 0.50, length:0.98},
+  {angle: 1.10, length:0.78},
+];
+
 let scene, camera, renderer, controls;
 let geckoFoot, surface, gridHelper;
-let toeGroups=[], toePadGroups=[], lamellaeGroups=[], setaeGroups=[], forceArrows=[];
-let animFrameId, time=0;
-let lastMetrics={};
+let toeGroups=[], toePadGroups=[], lamellaeGroups=[], forceArrows=[];
+let setaStalkMeshes=[], setaBrushMeshes=[];
+// ── KEY: one Group per pad that holds both InstancedMeshes ──
+// Rotating setaWrappers[i].rotation.x changes only the setae lean angle,
+// leaving fingers/toes completely fixed.
+let setaWrappers=[];
+let padLamCenters=[];  // in setaWrapper LOCAL space (identical to padGrp local)
+let prevLamCount=18;
+let animFrameId, time=0, lastMetrics={};
 
-// Physics
-const SPATULA_AREA = 200e-9 * 200e-9;
-let SPATULAE_PER_SETA=100, TOE_PAD_AREA=100, HAMAKER=5e-20, CONTACT_EFF=0.05;
+// ══════════════════════════════════════════════════════
+//  SKIN TEXTURES
+// ══════════════════════════════════════════════════════
+function makeSkinTextures(){
+  const cvC=document.createElement('canvas'); cvC.width=cvC.height=512;
+  const cC=cvC.getContext('2d');
+  cC.fillStyle='#7a8d62'; cC.fillRect(0,0,512,512);
+  for(let i=0;i<62;i++){
+    const x=Math.random()*512,y=Math.random()*512;
+    const g=cC.createRadialGradient(x,y,0,x,y,6+Math.random()*32);
+    g.addColorStop(0,'rgba(30,42,16,.90)'); g.addColorStop(1,'rgba(30,42,16,0)');
+    cC.fillStyle=g; cC.fillRect(0,0,512,512);
+  }
+  for(let i=0;i<32;i++){
+    cC.fillStyle=`rgba(188,210,148,${.13+Math.random()*.28})`;
+    cC.beginPath();
+    cC.ellipse(Math.random()*512,Math.random()*512,3+Math.random()*22,2+Math.random()*14,Math.random()*Math.PI,0,Math.PI*2);
+    cC.fill();
+  }
+  const colorTex=new THREE.CanvasTexture(cvC);
+  colorTex.wrapS=colorTex.wrapT=THREE.RepeatWrapping; colorTex.repeat.set(2.2,2.2);
 
-// ═══ INIT ═══
-function init() {
-  const container = document.getElementById('canvas-container');
-  const W = container.clientWidth, H = container.clientHeight;
+  const cvB=document.createElement('canvas'); cvB.width=cvB.height=512;
+  const cB=cvB.getContext('2d');
+  cB.fillStyle='#3c3c3c'; cB.fillRect(0,0,512,512);
+  const S=10;
+  for(let x=0;x<512;x+=S) for(let y=0;y<512;y+=S){
+    const ox=(Math.floor(y/S)%2===0)?S*.5:0;
+    const v=165+Math.random()*78;
+    cB.fillStyle=`rgb(${v},${v},${v})`;
+    cB.beginPath(); cB.arc(x+ox,y,S*.40,0,Math.PI*2); cB.fill();
+  }
+  const bumpTex=new THREE.CanvasTexture(cvB);
+  bumpTex.wrapS=bumpTex.wrapT=THREE.RepeatWrapping; bumpTex.repeat.set(3,3);
 
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x080c1e);
-  scene.fog = new THREE.FogExp2(0x080c1e, 0.032);
+  const cvP=document.createElement('canvas'); cvP.width=cvP.height=256;
+  const cP=cvP.getContext('2d');
+  cP.fillStyle='#96b07c'; cP.fillRect(0,0,256,256);
+  for(let i=0;i<20;i++){
+    const g2=cP.createRadialGradient(Math.random()*256,Math.random()*256,0,Math.random()*256,Math.random()*256,5+Math.random()*24);
+    g2.addColorStop(0,'rgba(44,60,26,.52)'); g2.addColorStop(1,'rgba(44,60,26,0)');
+    cP.fillStyle=g2; cP.fillRect(0,0,256,256);
+  }
+  const padTex=new THREE.CanvasTexture(cvP);
+  padTex.wrapS=padTex.wrapT=THREE.RepeatWrapping; padTex.repeat.set(1.4,1.4);
 
-  camera = new THREE.PerspectiveCamera(52, W/H, 0.1, 100);
-  camera.position.set(0, 2.6, 4.8);
-
-  renderer = new THREE.WebGLRenderer({ antialias:true, preserveDrawingBuffer:true, powerPreference:'high-performance' });
-  renderer.setSize(W, H);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.4;
-  container.appendChild(renderer.domElement);
-
-  controls = new THREE.OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.06;
-  controls.minDistance = 1.2;
-  controls.maxDistance = 10;
-  controls.target.set(0, 0.2, 0);
-  controls.update();
-
-  setupLights();
-  buildEnvironment();
-  buildGeckoPaw();
-
-  setTimeout(()=>{ document.getElementById('loadingScreen').style.display='none'; }, 900);
-
-  setupListeners();
-  updateSim();
-  loop();
+  return{colorTex,bumpTex,padTex};
 }
 
-// ═══ LIGHTS ═══
-function setupLights() {
-  scene.add(new THREE.AmbientLight(0x5a6a8a, 0.85));
+// ══════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════
+function init(){
+  const cont=document.getElementById('canvas-container');
+  const W=cont.clientWidth, H=cont.clientHeight;
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x080c1e);
+  scene.fog=new THREE.FogExp2(0x080c1e,0.026);
+  camera=new THREE.PerspectiveCamera(50,W/H,0.005,100);
+  camera.position.set(0,2.8,5.2);
+  renderer=new THREE.WebGLRenderer({antialias:true,preserveDrawingBuffer:true,powerPreference:'high-performance'});
+  renderer.setSize(W,H); renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+  renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.55;
+  cont.appendChild(renderer.domElement);
+  controls=new THREE.OrbitControls(camera,renderer.domElement);
+  controls.enableDamping=true; controls.dampingFactor=0.052;
+  controls.minDistance=0.20; controls.maxDistance=14;
+  controls.maxPolarAngle=Math.PI/1.72;
+  controls.target.set(0,0.15,0.3); controls.update();
+  setupLights(); buildEnvironment(); buildRealisticPaw();
+  setTimeout(()=>document.getElementById('loadingScreen').style.display='none',1100);
+  setupListeners(); updateSim(); loop();
+}
 
-  const sun = new THREE.DirectionalLight(0xffffff, 2.2);
-  sun.position.set(5,8,4);
-  sun.castShadow = true;
+function setupLights(){
+  scene.add(new THREE.AmbientLight(0x6a7a9a,0.95));
+  const sun=new THREE.DirectionalLight(0xfffaed,2.5);
+  sun.position.set(5,10,5); sun.castShadow=true;
   sun.shadow.mapSize.set(2048,2048);
-  sun.shadow.camera.left=-5; sun.shadow.camera.right=5;
-  sun.shadow.camera.top=5; sun.shadow.camera.bottom=-5;
-  sun.shadow.bias=-0.0005;
-  scene.add(sun);
-
-  const rim1 = new THREE.DirectionalLight(0x00ff88, 1.4);
-  rim1.position.set(-4,2,-4); scene.add(rim1);
-
-  const rim2 = new THREE.DirectionalLight(0x00d4ff, 0.9);
-  rim2.position.set(4,2,-3); scene.add(rim2);
-
-  scene.add(new THREE.HemisphereLight(0x4a6a9a, 0x2a3a5a, 0.7));
-
-  const fill = new THREE.PointLight(0x00ffaa, 2.0, 10);
-  fill.position.set(0,3,2); scene.add(fill);
+  sun.shadow.camera.left=-4; sun.shadow.camera.right=4;
+  sun.shadow.camera.top=4; sun.shadow.camera.bottom=-4;
+  sun.shadow.bias=-0.0004; scene.add(sun);
+  const r1=new THREE.DirectionalLight(0x44ffaa,1.5); r1.position.set(-4,3,-3); scene.add(r1);
+  const r2=new THREE.DirectionalLight(0x44aaff,0.9); r2.position.set(5,2,-2); scene.add(r2);
+  scene.add(new THREE.HemisphereLight(0x4a6a9a,0x2a3a5a,0.85));
+  const pt=new THREE.PointLight(0x00ffaa,2.2,14); pt.position.set(0,4,2); scene.add(pt);
 }
 
-// ═══ ENVIRONMENT ═══
-function buildEnvironment() {
-  const surfMat = new THREE.MeshStandardMaterial({ color:0x2a3a5a, roughness:0.2, metalness:0.8, transparent:true, opacity:0.98 });
-  surface = new THREE.Mesh(new THREE.PlaneGeometry(20,20), surfMat);
-  surface.rotation.x = -Math.PI/2;
-  surface.receiveShadow = true;
-  scene.add(surface);
-
-  gridHelper = new THREE.GridHelper(20, 40, 0x00ff88, 0x1a2a4a);
-  gridHelper.position.y = 0.002;
-  gridHelper.material.opacity = 0.18;
-  gridHelper.material.transparent = true;
-  scene.add(gridHelper);
-
-  // Floating particles
-  const pg = new THREE.BufferGeometry();
-  const pos = new Float32Array(1200*3);
-  for(let i=0;i<1200*3;i+=3){
-    pos[i]=(Math.random()-0.5)*25;
-    pos[i+1]=Math.random()*10;
-    pos[i+2]=(Math.random()-0.5)*25;
-  }
-  pg.setAttribute('position', new THREE.BufferAttribute(pos,3));
-  scene.add(new THREE.Points(pg, new THREE.PointsMaterial({ color:0x00ff88, size:0.01, transparent:true, opacity:0.5, blending:THREE.AdditiveBlending })));
+function buildEnvironment(){
+  surface=new THREE.Mesh(
+    new THREE.PlaneGeometry(22,22),
+    new THREE.MeshStandardMaterial({color:0x1e2e4a,roughness:0.18,metalness:0.85})
+  );
+  surface.rotation.x=-Math.PI/2; surface.receiveShadow=true; scene.add(surface);
+  gridHelper=new THREE.GridHelper(22,44,0x00ff88,0x1a2a4a);
+  gridHelper.position.y=0.002; gridHelper.material.opacity=0.13; gridHelper.material.transparent=true; scene.add(gridHelper);
+  const pg=new THREE.BufferGeometry();
+  const pos=new Float32Array(1600*3);
+  for(let i=0;i<1600*3;i+=3){pos[i]=(Math.random()-.5)*30;pos[i+1]=Math.random()*14;pos[i+2]=(Math.random()-.5)*30;}
+  pg.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  scene.add(new THREE.Points(pg,new THREE.PointsMaterial({color:0x00ff88,size:0.011,transparent:true,opacity:0.42,blending:THREE.AdditiveBlending})));
 }
 
-// ═══ GECKO PAW ═══
-function buildGeckoPaw() {
-  geckoFoot = new THREE.Group();
+// ══════════════════════════════════════════════════════
+//  BUILD REALISTIC PAW
+// ══════════════════════════════════════════════════════
+function buildRealisticPaw(){
+  geckoFoot=new THREE.Group();
+  toeGroups=[]; toePadGroups=[]; lamellaeGroups=[]; forceArrows=[];
+  setaStalkMeshes=[]; setaBrushMeshes=[]; setaWrappers=[]; padLamCenters=[];
 
-  const skinMat = new THREE.MeshStandardMaterial({ color:0x5a7a5a, roughness:0.78, metalness:0.1 });
-  const padMat  = new THREE.MeshStandardMaterial({ color:0x6a8a6a, roughness:0.92, metalness:0.05 });
+  const{colorTex,bumpTex,padTex}=makeSkinTextures();
+  const skinMat=new THREE.MeshPhysicalMaterial({map:colorTex,bumpMap:bumpTex,bumpScale:0.13,roughness:0.70,clearcoat:0.10,clearcoatRoughness:0.55});
+  const padMat=new THREE.MeshPhysicalMaterial({map:padTex,bumpMap:bumpTex,bumpScale:0.055,roughness:0.86,clearcoat:0.06});
+  const lamMat=new THREE.MeshStandardMaterial({color:0xa4bc92,roughness:0.82,bumpMap:bumpTex,bumpScale:0.028});
+  const clawMat=new THREE.MeshStandardMaterial({color:0x1c1c12,roughness:0.30,metalness:0.12});
 
-  const palmG = new THREE.SphereGeometry(0.7, 32, 24);
-  palmG.scale(1.4, 0.3, 1.0);
-  const palm = new THREE.Mesh(palmG, skinMat);
-  palm.position.y = 0.08;
-  palm.castShadow = palm.receiveShadow = true;
-  geckoFoot.add(palm);
+  // Palm
+  const palmG=new THREE.SphereGeometry(0.50,36,28); palmG.scale(1.38,0.40,1.18);
+  const palm=new THREE.Mesh(palmG,skinMat);
+  palm.position.set(0,0.10,0.10); palm.castShadow=palm.receiveShadow=true; geckoFoot.add(palm);
 
-  // Scales
-  for(let i=0;i<25;i++){
-    const sc = new THREE.Mesh(new THREE.SphereGeometry(0.018+Math.random()*0.012,8,8), skinMat);
-    const a=Math.random()*Math.PI*2, r=Math.random()*0.6;
-    sc.position.set(Math.cos(a)*r, 0.12+Math.random()*0.04, Math.sin(a)*r*0.7);
-    geckoFoot.add(sc);
+  // Heel
+  const heelG=new THREE.SphereGeometry(0.32,28,18); heelG.scale(1.0,0.50,1.0);
+  const heel=new THREE.Mesh(heelG,skinMat);
+  heel.position.set(0,0.10,-0.50); heel.castShadow=heel.receiveShadow=true; geckoFoot.add(heel);
+
+  // Wrist
+  const wristG=new THREE.CylinderGeometry(0.21,0.30,0.42,16);
+  wristG.rotateX(Math.PI/2); wristG.translate(0,0.10,-0.72);
+  geckoFoot.add(new THREE.Mesh(wristG,skinMat));
+
+  // Scale bumps
+  for(let i=0;i<22;i++){
+    const sg=new THREE.SphereGeometry(0.020+Math.random()*0.014,8,8);
+    const sm=new THREE.Mesh(sg,skinMat);
+    const a=Math.random()*Math.PI*2,r=Math.random()*0.48;
+    sm.position.set(Math.cos(a)*r,0.13+Math.random()*0.04,Math.sin(a)*r*0.75+0.10);
+    geckoFoot.add(sm);
   }
 
-  const toeConfigs = [
-    {angle:-0.85, length:0.9, offset:0.65},
-    {angle:-0.42, length:1.05, offset:0.45},
-    {angle:0,     length:1.2,  offset:0.3},
-    {angle:0.42,  length:1.05, offset:0.45},
-    {angle:0.85,  length:0.9,  offset:0.65},
-  ];
+  TOE_CFGS.forEach((cfg,ti)=>{
+    const L=cfg.length;
+    const toeRotY=cfg.angle*0.92;
+    const toeGrp=new THREE.Group();
+    toeGrp.position.set(Math.sin(cfg.angle)*0.46,0.09,0.28+Math.cos(Math.abs(cfg.angle))*0.12);
+    toeGrp.rotation.y=toeRotY; toeGrp.rotation.x=-0.07;
 
-  toeConfigs.forEach(cfg => {
-    const tg = new THREE.Group();
-    const pg2 = new THREE.Group();
+    // Proximal phalanx
+    const prxG=new THREE.CylinderGeometry(0.063,0.092,L*0.44,16);
+    prxG.rotateX(Math.PI/2); prxG.translate(0,0.005,L*0.22);
+    toeGrp.add(new THREE.Mesh(prxG,skinMat));
+    // Joint
+    const jntG=new THREE.SphereGeometry(0.078,14,12); jntG.scale(1.0,0.74,1.0);
+    const jnt=new THREE.Mesh(jntG,skinMat); jnt.position.set(0,0.010,L*0.42); toeGrp.add(jnt);
+    // Distal phalanx
+    const dstG=new THREE.CylinderGeometry(0.053,0.074,L*0.34,14);
+    dstG.rotateX(Math.PI/2); dstG.translate(0,0.005,L*0.42+L*0.17);
+    toeGrp.add(new THREE.Mesh(dstG,skinMat));
 
-    const padG = new THREE.SphereGeometry(0.15, 24, 20);
-    padG.scale(1.25, 0.32, 1.0);
-    const pad = new THREE.Mesh(padG, padMat);
-    pad.position.y = 0.02;
-    pad.castShadow = pad.receiveShadow = true;
-    pg2.add(pad);
-    tg.add(pg2);
-    toePadGroups.push(pg2);
+    // ── padGrp: all adhesive structures ──
+    const padGrp=new THREE.Group();
+    padGrp.position.set(0,0,L*0.83);
+    const padG=new THREE.SphereGeometry(0.186,28,22); padG.scale(1.20,0.27,1.50);
+    const padM=new THREE.Mesh(padG,padMat);
+    padM.position.set(0,0.017,0); padM.castShadow=padM.receiveShadow=true;
+    padGrp.add(padM);
+    toeGrp.add(padGrp); toePadGroups.push(padGrp);
 
-    const totalLen = (0.28+0.24+0.22)*cfg.length;
-    tg.position.x = Math.sin(cfg.angle)*(cfg.offset+totalLen);
-    tg.position.y = 0.08;
-    tg.position.z = Math.cos(cfg.angle)*(cfg.offset+totalLen)*0.5 + 0.3;
-    tg.rotation.y = cfg.angle*0.25;
-    tg.rotation.x = -0.08;
+    // Claw
+    const cwG=new THREE.ConeGeometry(0.020,0.103,10);
+    const cwM=new THREE.Mesh(cwG,clawMat); cwM.rotation.x=Math.PI*0.62; cwM.position.z=0.052;
+    const cwP=new THREE.Group(); cwP.add(cwM); cwP.position.set(0,0.010,L); toeGrp.add(cwP);
 
-    geckoFoot.add(tg);
-    toeGroups.push(tg);
-  });
+    // ── Lamellae (child of padGrp) ──
+    const lamGrp=makeLamellaeGroup(L,18,lamMat);
+    padGrp.add(lamGrp); lamellaeGroups.push(lamGrp);
 
-  geckoFoot.position.y = 0.01;
-  geckoFoot.rotation.y = Math.PI;
-  scene.add(geckoFoot);
+    // ── setaWrapper (child of padGrp) ──
+    // This Group holds both InstancedMeshes.
+    // Rotating setaWrapper.rotation.x changes the contact angle of ALL setae
+    // relative to the pad surface, without moving the toe or finger at all.
+    const setaWrapper=new THREE.Group();
+    padGrp.add(setaWrapper); setaWrappers.push(setaWrapper);
 
-  buildLamellaeSeta(18, 14400);
-}
+    // Lamella centers in setaWrapper local space (= padGrp local, since wrapper starts at origin)
+    const lamCenters=computeLamCenters(L,18);
+    padLamCenters.push(lamCenters);
 
-// ═══ LAMELLAE & SETAE ═══
-function buildLamellaeSeta(lamCount, density) {
-  lamellaeGroups.forEach(g=>g.parent&&g.parent.remove(g));
-  setaeGroups.forEach(g=>g.parent&&g.parent.remove(g));
-  forceArrows.forEach(a=>scene.remove(a));
-  lamellaeGroups=[]; setaeGroups=[]; forceArrows=[];
-
-  const lamMat = new THREE.MeshStandardMaterial({ color:0x7a9d7a, roughness:0.98, metalness:0.02 });
-  const setaMat = new THREE.MeshStandardMaterial({ color:0x00ff88, emissive:0x00ff88, emissiveIntensity:0.55, roughness:0.25, transparent:true, opacity:0.88 });
-
-  toePadGroups.forEach((pg, idx) => {
-    const lamGrp = new THREE.Group();
-    for(let i=0;i<lamCount;i++){
-      const p = i/(lamCount-1);
-      const w = 0.17*(1-p*0.22);
-      const ridge = new THREE.Mesh(new THREE.BoxGeometry(w,0.005,0.016), lamMat);
-      ridge.position.set(0,-0.068,-0.13+p*0.26);
-      lamGrp.add(ridge);
-    }
-    pg.add(lamGrp);
-    lamellaeGroups.push(lamGrp);
-
-    const setaGrp = new THREE.Group();
-    const count = Math.floor(density/32);
-    for(let i=0;i<count;i++){
-      const x=(Math.random()-0.5)*0.3, z=(Math.random()-0.5)*0.2;
-      const seta = new THREE.Mesh(new THREE.CylinderGeometry(0.001,0.0007,0.10,3), setaMat.clone());
-      seta.position.set(x,-0.12,z);
-      seta.rotation.x=(Math.random()-0.5)*0.1;
-      seta.rotation.z=(Math.random()-0.5)*0.1;
-
-      const tip = new THREE.Mesh(new THREE.SphereGeometry(0.0032,4,4), setaMat.clone());
-      tip.position.y=-0.05; seta.add(tip);
-
-      for(let b=0;b<3;b++){
-        const ba=b/3*Math.PI*2;
-        const mb = new THREE.Mesh(new THREE.SphereGeometry(0.001,3,3), setaMat.clone());
-        mb.position.set(Math.cos(ba)*0.0045, -0.0018, Math.sin(ba)*0.0045);
-        tip.add(mb);
-      }
-      setaGrp.add(seta);
-    }
-    pg.add(setaGrp);
-    setaeGroups.push(setaGrp);
+    // Build instanced setae for this pad
+    buildSetaeForPad(ti,setaWrapper,lamCenters,14400);
 
     // Force arrow
-    const origin = new THREE.Vector3();
-    pg.getWorldPosition(origin);
-    origin.y -= 0.11;
-    const arrow = new THREE.ArrowHelper(new THREE.Vector3(0,-1,0), origin, 0.48, 0x00ff88, 0.10, 0.065);
-    scene.add(arrow);
-    forceArrows.push(arrow);
+    const arrow=new THREE.ArrowHelper(new THREE.Vector3(0,-1,0),new THREE.Vector3(),0.40,0x00e87a,0.075,0.052);
+    scene.add(arrow); forceArrows.push(arrow);
+
+    geckoFoot.add(toeGrp); toeGroups.push(toeGrp);
+  });
+
+  geckoFoot.position.y=0.01;
+  geckoFoot.rotation.y=Math.PI;
+  geckoFoot.rotation.x=0;  // NEVER changed by contact angle — foot stays fixed
+  scene.add(geckoFoot);
+}
+
+// ══════════════════════════════════════════════════════
+//  LAMELLAE  (padGrp local space)
+// ══════════════════════════════════════════════════════
+function makeLamellaeGroup(L,count,mat){
+  const grp=new THREE.Group();
+  const zStart=L*(0.70-0.83); // = -0.13*L  relative to padGrp origin
+  const zSpan=L*0.27;
+  for(let r=0;r<count;r++){
+    const p=r/(count-1);
+    const rW=Math.sin(p*Math.PI)*0.214+0.042;
+    const ridge=new THREE.Mesh(new THREE.BoxGeometry(rW*2,0.0054,0.016),mat);
+    ridge.position.set(0,-0.060,zStart+p*zSpan);
+    ridge.rotation.x=-0.30;
+    grp.add(ridge);
+  }
+  return grp;
+}
+
+function computeLamCenters(L,count){
+  const out=[];
+  const zStart=L*(0.70-0.83);
+  const zSpan=L*0.27;
+  for(let r=0;r<count;r++){
+    const p=r/(count-1);
+    out.push({x:0, y:-0.060, z:zStart+p*zSpan, width:Math.sin(p*Math.PI)*0.214+0.042});
+  }
+  return out;
+}
+
+// ══════════════════════════════════════════════════════
+//  INSTANCED SETAE — PER PAD
+//  Parented to setaWrapper (child of padGrp).
+//  Instance matrices in setaWrapper LOCAL space.
+//  setaWrapper.rotation.x = (90 - angle) * PI/180
+//    → angle=0°:  wrapper rotated +90°, setae point along surface (flat) ← max contact
+//    → angle=30°: wrapper rotated +60°, setae at 30° from surface      ← biological optimum
+//    → angle=90°: wrapper rotated  0°, setae perpendicular to surface   ← poor adhesion
+// ══════════════════════════════════════════════════════
+function buildSetaeForPad(ti, setaWrapper, lamCenters, density){
+  // Stalk: cylinder pointing in +Y (default), pivot at base (translated +0.05 in Y)
+  const stalkGeo=new THREE.CylinderGeometry(0.00085,0.00060,0.100,5);
+  stalkGeo.translate(0,0.050,0);
+
+  // Spatula brush: inverted cone (wide at free tip end)
+  const brushGeo=new THREE.CylinderGeometry(0.01100,0.00045,0.030,7);
+  brushGeo.translate(0,0.115,0);
+
+  const col=new THREE.Color(0x00e87a);  // initial green
+  const stalkMat=new THREE.MeshStandardMaterial({color:col.clone(),emissive:col.clone(),emissiveIntensity:0.48,roughness:0.28,flatShading:true,transparent:true,opacity:0.93});
+  const brushMat=new THREE.MeshStandardMaterial({color:col.clone(),emissive:col.clone(),emissiveIntensity:0.62,roughness:0.20,flatShading:true,transparent:true,opacity:0.90});
+
+  const stalkMesh=new THREE.InstancedMesh(stalkGeo,stalkMat,SETA_PER_PAD);
+  const brushMesh=new THREE.InstancedMesh(brushGeo,brushMat,SETA_PER_PAD);
+  stalkMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  brushMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+
+  const dummy=new THREE.Object3D();
+  const N=lamCenters.length;
+
+  for(let i=0;i<SETA_PER_PAD;i++){
+    const lam=lamCenters[i%N];
+    // Position on lamella ridge in setaWrapper space (= padGrp space)
+    dummy.position.set(
+      lam.x+(Math.random()-.5)*lam.width*1.85,
+      lam.y,    // -0.060 = on ventral pad surface
+      lam.z+(Math.random()-.5)*0.034
+    );
+    // Base orientation: seta shaft points straight in -Y (downward, perpendicular to pad surface).
+    // rotation.x = Math.PI flips +Y cylinder → -Y direction.
+    // The setaWrapper.rotation.x will then tilt this according to contact angle.
+    // Small random azimuth (y) and splay (z) for natural biological variation.
+    dummy.rotation.order='XYZ';
+    dummy.rotation.set(
+      Math.PI,                          // base: pointing straight down
+      (Math.random()-.5)*0.28,          // random azimuth variation
+      (Math.random()-.5)*0.18           // random lateral splay
+    );
+    const sv=0.76+Math.random()*0.46;
+    dummy.scale.set(sv,sv,sv);
+    dummy.updateMatrix();
+    stalkMesh.setMatrixAt(i,dummy.matrix);
+    brushMesh.setMatrixAt(i,dummy.matrix);
+  }
+
+  stalkMesh.instanceMatrix.needsUpdate=true;
+  brushMesh.instanceMatrix.needsUpdate=true;
+  stalkMesh.count=brushMesh.count=calcSetaCount(density);
+
+  // Parent to setaWrapper — they follow the wrapper's rotation
+  setaWrapper.add(stalkMesh);
+  setaWrapper.add(brushMesh);
+
+  setaStalkMeshes[ti]=stalkMesh;
+  setaBrushMeshes[ti]=brushMesh;
+}
+
+function calcSetaCount(density){
+  return Math.max(24,Math.round(density/20000*SETA_PER_PAD));
+}
+
+// ── Color the setae based on adhesion state ──
+function updateSetaeColor(stateColor, effTotal, density, spatulae){
+  const col=new THREE.Color(stateColor);
+  const cnt=calcSetaCount(density);
+  setaStalkMeshes.forEach(m=>{
+    if(!m) return;
+    m.material.color.copy(col); m.material.emissive.copy(col);
+    m.material.emissiveIntensity=0.28+effTotal*0.62;
+    m.count=cnt;
+  });
+  setaBrushMeshes.forEach(m=>{
+    if(!m) return;
+    m.material.color.copy(col); m.material.emissive.copy(col);
+    m.material.emissiveIntensity=0.32+Math.min(spatulae/1000,1)*0.50+effTotal*0.18;
+    m.count=cnt;
   });
 }
 
-// ═══ PHYSICS ═══
-function spatulaForce(d_nm, hamaker) {
-  const d = d_nm*1e-9, h=hamaker*1e-20;
-  return (SPATULA_AREA*h)/(6*Math.PI*Math.pow(d,3));
+// ── Rebuild lamellae + setae when lamCount changes ──
+function rebuildLamellae(lamCount,density){
+  const lamMat=new THREE.MeshStandardMaterial({color:0xa4bc92,roughness:0.82});
+  lamellaeGroups.forEach(lg=>{
+    while(lg.children.length){const c=lg.children[0];c.geometry.dispose();c.material.dispose();lg.remove(c);}
+    if(lg.parent) lg.parent.remove(lg);
+  });
+  lamellaeGroups=[]; padLamCenters=[];
+  // Also clear old setae
+  setaStalkMeshes.forEach((m,i)=>{
+    if(m){const w=setaWrappers[i]; if(w){w.remove(m);} m.geometry.dispose();m.material.dispose();}
+    const b=setaBrushMeshes[i];
+    if(b){const w=setaWrappers[i]; if(w){w.remove(b);} b.geometry.dispose();b.material.dispose();}
+  });
+  setaStalkMeshes=[]; setaBrushMeshes=[];
+
+  TOE_CFGS.forEach((cfg,i)=>{
+    const L=cfg.length;
+    const padGrp=toePadGroups[i];
+    const newLamGrp=makeLamellaeGroup(L,lamCount,lamMat);
+    padGrp.add(newLamGrp); lamellaeGroups.push(newLamGrp);
+    const lams=computeLamCenters(L,lamCount);
+    padLamCenters.push(lams);
+    buildSetaeForPad(i,setaWrappers[i],lams,density);
+  });
+  prevLamCount=lamCount;
 }
 
-function efficiencyFactors(angle, distance, roughness) {
-  const dE = distance<=0.6 ? 1.0 : Math.exp(-2.0*(distance-0.6));
-  const aE = angle<=30    ? 1.0 : Math.cos(angle*Math.PI/180);
-  const rE = Math.pow(0.7, roughness-1);
-  return { d:Math.max(0,dE), a:Math.max(0,aE), r:rE, total:Math.max(0,dE)*Math.max(0,aE)*rE };
+// ══════════════════════════════════════════════════════
+//  PHYSICS
+// ══════════════════════════════════════════════════════
+function spatulaForce(d_nm,hamaker){
+  const d=d_nm*1e-9, h=hamaker*1e-20;
+  return(SPATULA_AREA*h)/(6*Math.PI*Math.pow(d,3));
 }
 
-// ═══ UPDATE SIMULATION ═══
-function updateSim() {
-  const density  = +document.getElementById('density').value;
-  const spatulae = +document.getElementById('spatulae').value;
-  const lamCount = +document.getElementById('lamellae').value;
-  const padArea  = +document.getElementById('padArea').value;
-  const angle    = +document.getElementById('angle').value;
-  const distance = +document.getElementById('distance').value;
-  const hamaker  = +document.getElementById('hamaker').value;
-  const roughness= +document.getElementById('roughness').value;
+function efficiencyFactors(angle,distance,roughness){
+  // angle factor: cos(θ) for θ>30°, full efficiency at θ≤30° (Autumn 2000)
+  const aE=angle<=30?1.0:Math.max(0,Math.cos(angle*Math.PI/180));
+  // distance factor: full at d≤0.4nm, exponential decay beyond (Huber 2005)
+  const dE=distance<=0.4?1.0:distance<=0.6?Math.exp(-3.0*(distance-0.4)):Math.exp(-3.0*(distance-0.4));
+  // roughness factor: 0.70^(level-1) (JKR model)
+  const rE=Math.pow(0.70,roughness-1);
+  return{d:Math.max(0,dE),a:Math.max(0,aE),r:rE,total:Math.max(0,dE)*Math.max(0,aE)*rE};
+}
+
+// Map overall efficiency to three biological states
+function getState(effTotal){
+  if(effTotal>=THR_SUFFICIENT)  return 'sufficient';
+  if(effTotal>=THR_MARGINAL)    return 'marginal';
+  return 'insufficient';
+}
+function stateColor(state){
+  return state==='sufficient'?'#00e87a':state==='marginal'?'#ff9500':'#ff3838';
+}
+function stateLabel(state){
+  return state==='sufficient'?'SUFFICIENT':state==='marginal'?'MARGINAL':'INSUFFICIENT';
+}
+function stateIcon(state){
+  return state==='sufficient'?'🟢':state==='marginal'?'🟠':'🔴';
+}
+
+// ══════════════════════════════════════════════════════
+//  UPDATE SIMULATION
+// ══════════════════════════════════════════════════════
+function updateSim(){
+  const density  =+document.getElementById('density').value;
+  const spatulae =+document.getElementById('spatulae').value;
+  const lamCount =+document.getElementById('lamellae').value;
+  const padArea  =+document.getElementById('padArea').value;
+  const angle    =+document.getElementById('angle').value;
+  const distance =+document.getElementById('distance').value;
+  const hamaker  =+document.getElementById('hamaker').value;
+  const roughness=+document.getElementById('roughness').value;
   const efficiency=+document.getElementById('efficiency').value;
 
-  // Display values
-  document.getElementById('densityVal').textContent   = density.toLocaleString();
-  document.getElementById('spatulaeVal').textContent  = spatulae;
-  document.getElementById('lamellaeVal').textContent  = lamCount;
-  document.getElementById('padAreaVal').textContent   = padArea;
-  document.getElementById('angleVal').textContent     = angle;
-  document.getElementById('distanceVal').textContent  = distance.toFixed(2);
-  document.getElementById('hamakerVal').textContent   = hamaker.toFixed(1);
-  document.getElementById('efficiencyVal').textContent= efficiency.toFixed(1);
-  const roughLabels=['Smooth','Fine','Medium','Coarse','Rough'];
-  document.getElementById('roughnessVal').textContent = roughLabels[roughness-1];
+  document.getElementById('densityVal').textContent   =density.toLocaleString();
+  document.getElementById('spatulaeVal').textContent  =spatulae;
+  document.getElementById('lamellaeVal').textContent  =lamCount;
+  document.getElementById('padAreaVal').textContent   =padArea;
+  document.getElementById('angleVal').textContent     =angle;
+  document.getElementById('distanceVal').textContent  =distance.toFixed(2);
+  document.getElementById('hamakerVal').textContent   =hamaker.toFixed(1);
+  document.getElementById('efficiencyVal').textContent=efficiency.toFixed(1);
+  document.getElementById('roughnessVal').textContent =ROUGH_LABELS[roughness-1];
 
-  SPATULAE_PER_SETA=spatulae; TOE_PAD_AREA=padArea; HAMAKER=hamaker*1e-20; CONTACT_EFF=efficiency/100;
+  if(lamCount!==prevLamCount) rebuildLamellae(lamCount,density);
 
-  // Rebuild if needed
-  const curLam = lamellaeGroups[0]?.children.length||0;
-  const curSet = setaeGroups[0]?.children.length||0;
-  const tgtSet = Math.floor(density/32);
-  if(curLam!==lamCount || Math.abs(curSet-tgtSet)>70) buildLamellaeSeta(lamCount, density);
+  const fSpat    =spatulaForce(distance,hamaker);
+  const eff      =efficiencyFactors(angle,distance,roughness);
+  const totalSetae=density*padArea;
+  const fTotal   =fSpat*totalSetae*spatulae*(efficiency/100)*eff.total;
+  const fSeta    =fSpat*spatulae*(efficiency/100)*eff.total;
+  const effArea  =padArea*eff.total*(efficiency/100);
+  const loadCap  =fTotal/9.81;
+  const effPct   =(eff.total*100).toFixed(1);
+  const state    =getState(eff.total);
+  const SC       =stateColor(state);
 
-  // Physics
-  const fSpat = spatulaForce(distance, hamaker);
-  const eff   = efficiencyFactors(angle, distance, roughness);
-  const totalSetae = density*padArea;
-  const totalSpat  = totalSetae*spatulae;
-  const effSpat    = totalSpat*CONTACT_EFF*eff.total;
-  const fTotal     = fSpat*effSpat;
-  const fSeta      = fSpat*spatulae*CONTACT_EFF*eff.total;
-  const effArea    = padArea*eff.total*CONTACT_EFF;
-  const loadCap    = fTotal/9.81;
-  const isAdhered  = eff.total>0.3;
-  const effPct     = (eff.total*100).toFixed(1);
+  // ── CSS state switch ──
+  document.body.className=state;
 
-  // ─── STATE SWITCH: body class + CSS vars ───
-  document.body.classList.toggle('adhered',   isAdhered);
-  document.body.classList.toggle('detaching', !isAdhered);
+  // ── Top bar ──
+  document.getElementById('stateLabelBar').textContent=stateLabel(state);
+  document.getElementById('stateEffBar').textContent=`eff. ${effPct}%`;
 
-  // Top bar state
-  document.getElementById('stateLabelBar').textContent = isAdhered ? 'ADHERED' : 'DETACHING';
-  document.getElementById('stateEffBar').textContent   = `eff. ${effPct}%`;
+  // ── Metrics ──
+  document.getElementById('totalForce').innerHTML  =`${fTotal.toFixed(2)}<span class="m-hero-unit">N</span>`;
+  document.getElementById('loadCapacity').innerHTML=`${loadCap.toFixed(3)}<span class="m-hero-unit">kg</span>`;
+  document.getElementById('heroSub').textContent   =
+    state==='sufficient'?'✓ Full adhesion — gecko weight supported':
+    state==='marginal'  ?'⚠ Reduced adhesion — marginal safety margin':
+                         '✗ Insufficient — detaching from surface';
+  document.getElementById('spatulaForce').innerHTML=`${(fSpat*1e9).toFixed(1)}<span class="mc-unit">nN</span>`;
+  document.getElementById('setaForce').innerHTML   =`${(fSeta*1e6).toFixed(1)}<span class="mc-unit">μN</span>`;
+  document.getElementById('contactArea').innerHTML =`${effArea.toFixed(2)}<span class="mc-unit">mm²</span>`;
+  document.getElementById('totalSetae').innerHTML  =`${(totalSetae/1000).toFixed(1)}<span class="mc-unit">k</span>`;
 
-  // Metrics
-  document.getElementById('totalForce').innerHTML  = `${fTotal.toFixed(2)}<span class="metric-hero-unit">N</span>`;
-  document.getElementById('loadCapacity').innerHTML= `${loadCap.toFixed(3)}<span class="metric-hero-unit">kg</span>`;
-  document.getElementById('heroSub').textContent   = isAdhered ? '✓ Sufficient adhesion' : '✗ Insufficient adhesion';
-  document.getElementById('spatulaForce').innerHTML= `${(fSpat*1e9).toFixed(1)}<span class="mc-unit">nN</span>`;
-  document.getElementById('setaForce').innerHTML   = `${(fSeta*1e6).toFixed(1)}<span class="mc-unit">μN</span>`;
-  document.getElementById('contactArea').innerHTML = `${effArea.toFixed(2)}<span class="mc-unit">mm²</span>`;
-  document.getElementById('totalSetae').innerHTML  = `${(totalSetae/1000).toFixed(0)}<span class="mc-unit">k</span>`;
+  // ── Efficiency bar ──
+  document.getElementById('effFill').style.width=effPct+'%';
+  document.getElementById('effFill').style.background=`linear-gradient(90deg,${SC},${SC}99)`;
+  document.getElementById('effPct').textContent=effPct+'%';
 
-  // Efficiency bar
-  document.getElementById('effFill').style.width  = effPct+'%';
-  document.getElementById('effPct').textContent   = effPct+'%';
-
-  // Factor bars
-  const factors=[
-    { id:'fDist', pctId:'fDistPct', val:eff.d },
-    { id:'fAngle', pctId:'fAnglePct', val:eff.a },
-    { id:'fRough', pctId:'fRoughPct', val:eff.r },
-  ];
-  factors.forEach(f=>{
-    const pct=(f.val*100).toFixed(0);
-    document.getElementById(f.id).style.width = pct+'%';
-    document.getElementById(f.id).style.background = isAdhered ? 'var(--accent)' : '#ff4040';
-    document.getElementById(f.pctId).textContent = pct+'%';
+  // ── Factor bars — each coloured by its own biological regime ──
+  [
+    ['fDist',eff.d,'fDistPct','distance'],
+    ['fAngle',eff.a,'fAnglePct','angle'],
+    ['fRough',eff.r,'fRoughPct','roughness'],
+  ].forEach(([id,v,pid,fid])=>{
+    const p=(v*100).toFixed(0);
+    const fc=factorColor(fid,v);
+    document.getElementById(id).style.width=p+'%';
+    document.getElementById(id).style.background=fc;
+    document.getElementById(pid).textContent=p+'%';
   });
 
-  // Cache for PDF
-  lastMetrics = {
-    density, spatulae, lamCount, padArea, angle, distance, hamaker,
-    roughness: roughLabels[roughness-1], efficiency,
-    spatulaForce:(fSpat*1e9).toFixed(1),
-    setaForce:(fSeta*1e6).toFixed(1),
-    totalForce:fTotal.toFixed(2),
-    contactArea:effArea.toFixed(2),
-    loadCapacity:loadCap.toFixed(3),
-    adhesionState: isAdhered?'ADHERED':'DETACHING',
-    effPct,
-    timestamp: new Date().toLocaleString()
-  };
+  // ── Setae: colour matches state ──
+  updateSetaeColor(SC,eff.total,density,spatulae);
 
-  // ─── 3D: seta colours ───
-  const hue = isAdhered ? 0.38 : 0;
-  setaeGroups.forEach(grp => grp.children.forEach(s=>{
-    const col = new THREE.Color().setHSL(hue, 1.0, 0.5);
-    s.material.color=col; s.material.emissive=col;
-    s.material.emissiveIntensity=eff.total*0.7;
-    s.rotation.y=(angle*Math.PI/180)*0.12;
-  }));
+  // ── CONTACT ANGLE — BIOLOGICALLY CORRECT ──
+  // θ (slider) = angle between seta shaft and substrate surface
+  // Formula: setaWrapper.rotation.x = (90° - θ) * π/180
+  // At θ=0°:  wrapper rotated +π/2  → setae point along surface (flat, max shear contact)
+  // At θ=30°: wrapper rotated +π/3  → setae at 30° from surface (biological optimum)
+  // At θ=90°: wrapper rotated 0     → setae perpendicular (poor contact)
+  // ONLY the seta groups rotate — toes and fingers stay completely fixed.
+  const wrapperRot=(90-angle)*Math.PI/180;
+  setaWrappers.forEach(sw=>{ if(sw) sw.rotation.x=wrapperRot; });
 
-  geckoFoot.position.y = 0.01+(distance-0.3)*0.05;
+  // ── Separation distance: lift foot ──
+  geckoFoot.position.y=0.008+(distance-0.30)*0.060;
 
+  // ── Force arrows ──
+  geckoFoot.updateWorldMatrix(true,true);
   forceArrows.forEach((arrow,i)=>{
+    if(!toePadGroups[i]) return;
     const wp=new THREE.Vector3();
-    toePadGroups[i].getWorldPosition(wp); wp.y-=0.11;
+    toePadGroups[i].getWorldPosition(wp); wp.y-=0.12;
     arrow.position.copy(wp);
-    arrow.setLength(eff.total*0.6,0.10,0.065);
-    arrow.setColor(isAdhered?0x00ff88:0xff4040);
+    arrow.setLength(Math.max(0.04,eff.total*0.50),0.075,0.050);
+    // Arrow colour matches state
+    const ac=state==='sufficient'?0x00e87a:state==='marginal'?0xff9500:0xff3838;
+    arrow.setColor(ac);
   });
 
-  if(surface) surface.material.roughness = 0.12+roughness*0.16;
+  if(surface) surface.material.roughness=0.10+roughness*0.17;
+
+  updateSciencePanel(state,SC,eff,angle,distance,roughness);
+
+  lastMetrics={density,spatulae,lamCount,padArea,angle,distance,hamaker,
+    roughness:ROUGH_LABELS[roughness-1],efficiency,
+    spatulaForce:(fSpat*1e9).toFixed(1),setaForce:(fSeta*1e6).toFixed(1),
+    totalForce:fTotal.toFixed(2),contactArea:effArea.toFixed(2),
+    loadCapacity:loadCap.toFixed(3),
+    adhesionState:stateLabel(state),stateColor:SC,
+    effPct,timestamp:new Date().toLocaleString()
+  };
 }
 
-// ═══ ANIMATION LOOP ═══
-function loop() {
-  animFrameId = requestAnimationFrame(loop);
-  time += 10;
+// ══════════════════════════════════════════════════════
+//  SCIENCE PANEL
+// ══════════════════════════════════════════════════════
+function updateSciencePanel(state,SC,eff,angle,distance,roughness){
+  const G=id=>document.getElementById(id);
 
-  controls.autoRotate = document.getElementById('toggleRotate').checked;
-  controls.autoRotateSpeed = 2.2;
-  controls.update();
+  // Worst factor
+  const facs=[{n:'Distance',v:eff.d,fid:'distance'},{n:'Angle',v:eff.a,fid:'angle'},{n:'Roughness',v:eff.r,fid:'roughness'}];
+  const worst=facs.reduce((a,b)=>a.v<b.v?a:b);
+  const wPct=(worst.v*100).toFixed(0);
 
-  const breathe = Math.sin(time*0.0002)*0.008;
-  toeGroups.forEach(t=>t.scale.y=1+breathe);
+  // Verdict
+  G('svIcon').textContent=stateIcon(state);
+  G('svTitle').style.color=SC;
 
-  renderer.render(scene, camera);
+  if(state==='sufficient'){
+    G('svTitle').textContent='SUFFICIENT — Strong van der Waals';
+    let b=distance<=0.4?'Peak separation zone (0.2–0.4 nm). β-keratin spatulae generating ~'+( (eff.d*10).toFixed(1))+' nN each. Full shear contact across lamellar array.':
+         distance<=0.6?'Good separation. vdW forces strong. Spatulae conforming well to substrate.':
+         'Elevated distance but adhesion sustained. All other factors compensating.';
+    if(angle>22) b+=' Contact angle ('+angle+'°) approaching 30° optimum boundary.';
+    G('svBody').textContent=b;
+  } else if(state==='marginal'){
+    G('svTitle').textContent='MARGINAL — Reduced Adhesion';
+    const cause=facs.filter(f=>factorColor(f.fid,f.v)!=='#00e87a').map(f=>f.n).join(' + ');
+    G('svBody').textContent='Adhesion reduced (20–50% efficiency). Factor(s) degraded: '+cause+'. Gecko can still cling but safety margin is compromised. Correcting one factor may restore full adhesion.';
+  } else {
+    G('svTitle').textContent='INSUFFICIENT — Detaching';
+    if(worst.n==='Angle'&&angle>50)
+      G('svBody').textContent='PEEL MODE at '+angle+'°. Geometry reversed: spatulae now peeled away from surface rather than sheared along it. Real gecko uses this deliberately — toe hyperextension >40° propagates a peel front, releasing adhesion in milliseconds. cos('+angle+'°) = '+Math.cos(angle*Math.PI/180).toFixed(2)+', only '+wPct+'% of shear force.';
+    else if(worst.n==='Distance'&&distance>1.0)
+      G('svBody').textContent='FORCE COLLAPSE at '+distance.toFixed(2)+' nm. F∝1/d³ — at this separation vdW force ≈ '+wPct+'% of optimum. Beyond ~1 nm no molecular attraction survives regardless of other parameters.';
+    else if(worst.n==='Roughness'&&roughness>=4)
+      G('svBody').textContent='CONFORMITY FAILURE. '+ROUGH_LABELS[roughness-1]+' surface: rigid β-keratin spatulae bridge asperity peaks but cannot fill valleys. Real contact area = '+wPct+'% of geometric. Insufficient per-area force.';
+    else
+      G('svBody').textContent='MULTI-FACTOR DEGRADATION: '+facs.filter(f=>f.v<0.7).map(f=>f.n+' ('+( f.v*100).toFixed(0)+'%)').join(', ')+'. Combined efficiency below 20% threshold.';
+  }
+
+  // Bottleneck
+  G('bnTitle').textContent=(state==='sufficient'?'Limiting Factor: ':'⚠ Primary Cause: ')+worst.n+' ('+wPct+'%)';
+  let bn='';
+  if(worst.n==='Angle'){
+    bn=angle<=30?'Angle in optimal shear zone (≤30°). At '+angle+'° efficiency = 100%. Max spatula contact area engaged.':
+       angle<=50?'At '+angle+'°: cos('+angle+'°) = '+(Math.cos(angle*Math.PI/180)*100).toFixed(0)+'% shear efficiency. Transitioning from shear to peel. Each degree above 30° costs contact area.':
+       'At '+angle+'°: full peel mode. Gecko detachment mechanism. Restore θ < 30° to re-adhere. Critical threshold: 30° (Autumn 2000).';
+  } else if(worst.n==='Distance'){
+    bn=distance<=0.4?'Optimal zone (≤0.4 nm). Force = (A·H)/(6π·d³) at maximum. Each spatula generating ~'+( (eff.d*10).toFixed(1))+' nN.':
+       distance<=0.7?'At '+distance.toFixed(2)+' nm: vdW force = '+wPct+'% of 0.3 nm optimum. F∝1/d³ decay is steep — 0.1 nm increase causes significant loss.':
+       'At '+distance.toFixed(2)+' nm: d³ denominator dominates. Force ≈ 0. Reduce to < 0.6 nm for viable adhesion. Optimal: 0.2–0.4 nm (Huber 2005).';
+  } else {
+    bn=roughness===1?'Smooth surface: 100% spatula contact. All β-keratin tips in vdW range. Reference state for Autumn/Huber measurements.':
+       roughness<=2?'Fine roughness: '+wPct+'% contact (×0.70 JKR penalty). Most spatulae still conforming. Adhesion maintained.':
+       roughness<=3?'Medium: '+wPct+'% contact. Significant asperity interference. Spatulae bridge peaks, missing valleys.':
+       ROUGH_LABELS[roughness-1]+': only '+wPct+'% real contact. β-keratin rigidity prevents valley conformance. Rough stone or sandpaper conditions.';
+  }
+  G('bnBody').textContent=bn;
+
+  // Physics state lines
+  const dC=eff.d>=0.90?'#00e87a':eff.d>=0.50?'#ff9500':'#ff3838';
+  const aC=eff.a>=0.99?'#00e87a':eff.a>=0.64?'#ff9500':'#ff3838';
+  const rC=eff.r>=1.0?'#00e87a':eff.r>=0.49?'#ff9500':'#ff3838';
+  const dZ=distance<=0.4?'⬤ peak':distance<=0.6?'⬤ good':distance<=1.0?'◐ reduced':'○ negligible';
+  const aZ=angle<=30?'⬤ shear':angle<=50?'◐ peel onset':'○ peeling';
+  const rZ=roughness===1?'⬤ full':roughness<=3?'◐ partial':'○ failure';
+  G('psLine1').innerHTML=`<strong style="color:${SC}">F = (A·H) / (6π·d³)</strong> per spatula`;
+  G('psLine2').innerHTML=`d = ${distance.toFixed(2)} nm &nbsp;<span style="color:${dC}">${dZ}</span>`;
+  G('psLine3').innerHTML=`θ = ${angle}° &nbsp;<span style="color:${aC}">${aZ}</span>`;
+  G('psLine4').innerHTML=`Surface: ${ROUGH_LABELS[roughness-1]} &nbsp;<span style="color:${rC}">${rZ}</span>`;
+
+  // Dynamic param descriptions
+  G('infoAngle').innerHTML=angle<=30
+    ?`<strong style="color:#00e87a">✓ ${angle}° — shear regime (optimal).</strong> Setae dragged along surface, spatula tips maximising contact area with substrate. Full vdW engagement.`
+    :angle<=50
+      ?`<strong style="color:#ff9500">⚠ ${angle}° — peel onset.</strong> cos(${angle}°) = ${Math.cos(angle*Math.PI/180).toFixed(2)}, ${(Math.cos(angle*Math.PI/180)*100).toFixed(0)}% shear force remaining. Transitioning from shear to peel mechanics. Peel front beginning to propagate.`
+      :`<strong style="color:#ff3838">✗ ${angle}° — peel regime (detaching).</strong> Above 50°: peel force dominates. Gecko voluntarily uses θ > 40° for rapid detachment — toe hyperextension propagates peel front across the entire lamellar array in milliseconds.`;
+
+  const dVal=(eff.d*10).toFixed(2);
+  G('infoDist').innerHTML=distance<=0.4
+    ?`<strong style="color:#00e87a">✓ ${distance.toFixed(2)} nm — peak zone.</strong> Individual spatula: ~${dVal} nN per unit. Maximum London dispersion forces. (Reference: Huber et al. 2005, ~10 nN at 0.3 nm)`
+    :distance<=0.6
+      ?`<strong style="color:#00e87a">✓ ${distance.toFixed(2)} nm — adhesion maintained.</strong> Force ≈ ${(eff.d*100).toFixed(0)}% of peak. vdW still viable but declining. Optimal range is 0.2–0.4 nm.`
+      :distance<=1.0
+        ?`<strong style="color:#ff9500">⚠ ${distance.toFixed(2)} nm — declining.</strong> F ≈ ${(eff.d*100).toFixed(0)}% of optimum (d³ denominator). Every 0.1 nm increase multiplies denominator significantly.`
+        :`<strong style="color:#ff3838">✗ ${distance.toFixed(2)} nm — no adhesion.</strong> d³ denominator renders vdW force negligible. Cannot adhere at this separation regardless of angle or roughness.`;
+
+  const rP=(eff.r*100).toFixed(0);
+  G('infoRough').innerHTML=roughness===1
+    ?`<strong style="color:#00e87a">✓ Smooth — 100% contact.</strong> All spatulae making full vdW contact. This is the standard state used in all published single-seta measurements.`
+    :roughness<=2
+      ?`<strong style="color:#00e87a">✓ Fine — ${rP}% contact.</strong> Minor JKR conformity loss. Most spatulae still conforming. Adhesion fully maintained.`
+      :roughness<=3
+        ?`<strong style="color:#ff9500">◐ Medium — ${rP}% contact.</strong> Significant asperity interference. Spatulae bridge surface peaks but do not fill valleys — real contact area reduced.`
+        :`<strong style="color:#ff3838">✗ ${ROUGH_LABELS[roughness-1]} — only ${rP}% contact.</strong> β-keratin rigidity prevents conformance. Similar to field conditions on rough stone. Adhesion severely compromised.`;
 }
 
-// ═══ LISTENERS ═══
-function setupListeners() {
+// ══════════════════════════════════════════════════════
+//  ANIMATION LOOP
+// ══════════════════════════════════════════════════════
+function loop(){
+  animFrameId=requestAnimationFrame(loop);
+  time+=10;
+  controls.autoRotate=document.getElementById('toggleRotate').checked;
+  controls.autoRotateSpeed=1.8; controls.update();
+  const breathe=Math.sin(time*0.00016)*0.005;
+  toeGroups.forEach(t=>t.scale.setScalar(1+breathe));
+  const dist=camera.position.distanceTo(controls.target);
+  document.getElementById('zoomBadge').classList.toggle('vis',dist<1.6);
+  renderer.render(scene,camera);
+}
+
+// ══════════════════════════════════════════════════════
+//  LISTENERS
+// ══════════════════════════════════════════════════════
+function setupListeners(){
   ['density','spatulae','lamellae','padArea','angle','distance','hamaker','roughness','efficiency']
-    .forEach(id=>document.getElementById(id).addEventListener('input', updateSim));
-
-  document.getElementById('toggleGrid').addEventListener('change', e=>gridHelper.visible=e.target.checked);
-  document.getElementById('toggleSetae').addEventListener('change', e=>setaeGroups.forEach(g=>g.visible=e.target.checked));
-  document.getElementById('toggleLamellae').addEventListener('change', e=>lamellaeGroups.forEach(g=>g.visible=e.target.checked));
-  document.getElementById('toggleForces').addEventListener('change', e=>forceArrows.forEach(a=>a.visible=e.target.checked));
-
-  window.addEventListener('resize', ()=>{
+    .forEach(id=>document.getElementById(id).addEventListener('input',updateSim));
+  document.getElementById('toggleGrid').addEventListener('change',e=>gridHelper.visible=e.target.checked);
+  document.getElementById('toggleSetae').addEventListener('change',e=>{
+    setaStalkMeshes.forEach(m=>{if(m)m.visible=e.target.checked;});
+    setaBrushMeshes.forEach(m=>{if(m)m.visible=e.target.checked;});
+  });
+  document.getElementById('toggleLamellae').addEventListener('change',e=>lamellaeGroups.forEach(g=>g.visible=e.target.checked));
+  document.getElementById('toggleForces').addEventListener('change',e=>forceArrows.forEach(a=>a.visible=e.target.checked));
+  window.addEventListener('resize',()=>{
     const c=document.getElementById('canvas-container');
-    const W=c.clientWidth, H=c.clientHeight;
-    camera.aspect=W/H; camera.updateProjectionMatrix();
-    renderer.setSize(W,H);
+    camera.aspect=c.clientWidth/c.clientHeight; camera.updateProjectionMatrix();
+    renderer.setSize(c.clientWidth,c.clientHeight);
   });
 }
 
-// ═══ RESET ═══
-function resetSimulation() {
-  document.getElementById('density').value   = 14400;
-  document.getElementById('spatulae').value  = 100;
-  document.getElementById('lamellae').value  = 18;
-  document.getElementById('padArea').value   = 100;
-  document.getElementById('angle').value     = 30;
-  document.getElementById('distance').value  = 0.30;
-  document.getElementById('hamaker').value   = 5.0;
-  document.getElementById('roughness').value = 1;
-  document.getElementById('efficiency').value= 5;
+// ══════════════════════════════════════════════════════
+//  RESET
+// ══════════════════════════════════════════════════════
+function resetSimulation(){
+  const d={density:14400,spatulae:100,lamellae:18,padArea:100,angle:30,distance:0.30,hamaker:5.0,roughness:1,efficiency:5};
+  Object.entries(d).forEach(([id,v])=>document.getElementById(id).value=v);
   updateSim();
 }
 
-// ═══ PDF REPORT ═══
-function printReport() {
-  renderer.render(scene, camera);
+// ══════════════════════════════════════════════════════
+//  PDF REPORT
+// ══════════════════════════════════════════════════════
+function printReport(){
+  renderer.render(scene,camera);
   setTimeout(()=>{
-    const img = renderer.domElement.toDataURL('image/png');
-    const m = lastMetrics;
-    const sc = m.adhesionState==='ADHERED'?'#00ff88':'#ff4040';
-
-    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8">
-<title>Gecko Adhesion Report</title>
+    const img=renderer.domElement.toDataURL('image/png');
+    const m=lastMetrics, sc=m.stateColor;
+    const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Gecko Report</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@700;900&display=swap" rel="stylesheet">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Space Mono',monospace;background:#080c1e;color:#f0f4ff;padding:0}
-.page{width:210mm;min-height:297mm;margin:0 auto;background:#080c1e;padding:14mm 16mm}
-h1{font-family:'Syne',sans-serif;font-size:22px;font-weight:900;color:${sc};letter-spacing:2px}
-.sub{font-size:9px;color:rgba(240,244,255,0.35);letter-spacing:2px;margin-top:4px;text-transform:uppercase}
-.header{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid ${sc}40;margin-bottom:16px;padding-bottom:12px}
-.pill{display:inline-block;padding:5px 18px;border-radius:20px;border:1.5px solid ${sc};color:${sc};font-family:'Syne',sans-serif;font-size:11px;font-weight:700;letter-spacing:3px}
-.snap{width:100%;border-radius:10px;overflow:hidden;border:1px solid ${sc}33;margin-bottom:16px;background:#0d1232}
-.snap img{width:100%;display:block;max-height:88mm;object-fit:cover}
-.rg{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
-.rt{background:${sc}0d;border:1px solid ${sc}33;border-radius:8px;padding:12px;position:relative}
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Space Mono',monospace;background:#080c1e;color:#eef2ff}
+.page{width:210mm;min-height:297mm;margin:0 auto;background:#080c1e;padding:13mm 14mm}
+h1{font-family:'Syne',sans-serif;font-size:20px;font-weight:900;color:${sc};letter-spacing:2px}
+.sub{font-size:8.5px;color:rgba(238,242,255,.32);letter-spacing:2px;margin-top:3px;text-transform:uppercase}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid ${sc}40;margin-bottom:13px;padding-bottom:10px}
+.pill{display:inline-block;padding:4px 15px;border-radius:20px;border:1.5px solid ${sc};color:${sc};font-family:'Syne',sans-serif;font-size:10px;font-weight:700;letter-spacing:2.5px}
+.snap{width:100%;border-radius:9px;overflow:hidden;border:1px solid ${sc}30;margin-bottom:12px;background:#0d1230}
+.snap img{width:100%;display:block;max-height:84mm;object-fit:cover}
+.rg{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:11px}
+.rt{background:${sc}0c;border:1px solid ${sc}30;border-radius:8px;padding:10px;position:relative}
 .rt::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:${sc};border-radius:8px 8px 0 0}
-.rl{font-size:8px;color:rgba(240,244,255,0.35);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px}
-.rv{font-family:'Syne',sans-serif;font-size:20px;font-weight:900;color:${sc}}
-.ru{font-size:9px;color:rgba(240,244,255,0.3);margin-left:2px;font-family:'Space Mono',monospace;font-weight:400}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
-.card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:9px;padding:13px 15px}
-.ct{font-family:'Syne',sans-serif;font-size:9px;font-weight:700;letter-spacing:2px;color:${sc};text-transform:uppercase;margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid ${sc}30}
-.pr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;font-size:9px}
-.pn{color:rgba(240,244,255,0.45)}.pv{color:#00d4ff;font-weight:700;font-size:10px}
-.fb{background:rgba(0,212,255,0.05);border-left:3px solid #00d4ff;border-radius:6px;padding:11px 13px;font-size:9px;line-height:1.7;color:rgba(240,244,255,0.65)}
-.fb strong{color:#00d4ff;display:block;margin-bottom:4px}
-.foot{border-top:1px solid rgba(255,255,255,0.07);margin-top:10px;padding-top:9px;display:flex;justify-content:space-between;font-size:8px;color:rgba(240,244,255,0.2);letter-spacing:1px}
-@media print{@page{size:A4;margin:0}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{width:100%;padding:10mm 12mm}}
+.rl{font-size:7.5px;color:rgba(238,242,255,.33);letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}
+.rv{font-family:'Syne',sans-serif;font-size:18px;font-weight:900;color:${sc}}
+.ru{font-size:8px;color:rgba(238,242,255,.28);margin-left:2px;font-family:'Space Mono',monospace;font-weight:400}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.card{background:rgba(255,255,255,.028);border:1px solid rgba(255,255,255,.065);border-radius:9px;padding:11px 13px}
+.ct{font-family:'Syne',sans-serif;font-size:8.5px;font-weight:700;letter-spacing:1.8px;color:${sc};text-transform:uppercase;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid ${sc}28}
+.pr{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;font-size:8.5px}
+.pn{color:rgba(238,242,255,.42)}.pv{color:#00d4ff;font-weight:700;font-size:9.5px}
+.fb{background:rgba(0,210,255,.045);border-left:3px solid #00d4ff;border-radius:6px;padding:9px 11px;font-size:8.5px;line-height:1.75;color:rgba(238,242,255,.62)}
+.fb strong{color:#00d4ff;display:block;margin-bottom:3px}
+.foot{border-top:1px solid rgba(255,255,255,.065);margin-top:9px;padding-top:7px;display:flex;justify-content:space-between;font-size:7px;color:rgba(238,242,255,.18);letter-spacing:1px}
+@media print{@page{size:A4;margin:0}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.page{width:100%;padding:9mm 11mm}}
 </style></head><body><div class="page">
-<div class="header">
-  <div><h1>GECKO ADHESION PHYSICS</h1><div class="sub">Organic Paw Model · Van der Waals Simulation Report · ${m.timestamp}</div></div>
-  <div><div class="pill">${m.adhesionState}</div></div>
-</div>
+<div class="hdr"><div><h1>GECKO ADHESION PHYSICS</h1><div class="sub">Tokay Gecko · Per-Pad Setae · Van der Waals · ${m.timestamp}</div></div><div><div class="pill">${m.adhesionState}</div></div></div>
 <div class="snap"><img src="${img}" alt="3D View"></div>
 <div class="rg">
-  <div class="rt"><div class="rl">Spatula Force</div><div class="rv">${m.spatulaForce}<span class="ru">nN</span></div></div>
-  <div class="rt"><div class="rl">Seta Force</div><div class="rv">${m.setaForce}<span class="ru">μN</span></div></div>
-  <div class="rt"><div class="rl">Total Force</div><div class="rv">${m.totalForce}<span class="ru">N</span></div></div>
-  <div class="rt"><div class="rl">Contact Area</div><div class="rv">${m.contactArea}<span class="ru">mm²</span></div></div>
-  <div class="rt"><div class="rl">Load Capacity</div><div class="rv">${m.loadCapacity}<span class="ru">kg</span></div></div>
-  <div class="rt"><div class="rl">Efficiency</div><div class="rv">${m.effPct}<span class="ru">%</span></div></div>
+<div class="rt"><div class="rl">Spatula Force</div><div class="rv">${m.spatulaForce}<span class="ru">nN</span></div></div>
+<div class="rt"><div class="rl">Seta Force</div><div class="rv">${m.setaForce}<span class="ru">μN</span></div></div>
+<div class="rt"><div class="rl">Total Force</div><div class="rv">${m.totalForce}<span class="ru">N</span></div></div>
+<div class="rt"><div class="rl">Contact Area</div><div class="rv">${m.contactArea}<span class="ru">mm²</span></div></div>
+<div class="rt"><div class="rl">Load Capacity</div><div class="rv">${m.loadCapacity}<span class="ru">kg</span></div></div>
+<div class="rt"><div class="rl">Efficiency</div><div class="rv">${m.effPct}<span class="ru">%</span></div></div>
 </div>
-<div class="two">
-  <div>
-    <div class="card" style="margin-bottom:10px">
-      <div class="ct">🧬 Biological</div>
-      <div class="pr"><span class="pn">Setae Density</span><span class="pv">${m.density.toLocaleString()} /mm²</span></div>
-      <div class="pr"><span class="pn">Spatulae/Seta</span><span class="pv">${m.spatulae}</span></div>
-      <div class="pr"><span class="pn">Lamellae</span><span class="pv">${m.lamCount}</span></div>
-      <div class="pr"><span class="pn">Toe Pad Area</span><span class="pv">${m.padArea} mm²</span></div>
-    </div>
-    <div class="card">
-      <div class="ct">⚛️ Physics</div>
-      <div class="pr"><span class="pn">Contact Angle</span><span class="pv">${m.angle}°</span></div>
-      <div class="pr"><span class="pn">Separation</span><span class="pv">${m.distance} nm</span></div>
-      <div class="pr"><span class="pn">Hamaker Const.</span><span class="pv">${m.hamaker}×10⁻²⁰ J</span></div>
-      <div class="pr"><span class="pn">Roughness</span><span class="pv">${m.roughness}</span></div>
-      <div class="pr"><span class="pn">Contact Eff.</span><span class="pv">${m.efficiency}%</span></div>
-    </div>
-  </div>
-  <div>
-    <div class="fb" style="margin-bottom:10px">
-      <strong>Van der Waals Formula</strong>
-      F = (A × H) / (6π × d³)<br><br>
-      A = ${(SPATULA_AREA*1e18).toFixed(0)}×10⁻¹⁸ m² &nbsp; H = ${m.hamaker}×10⁻²⁰ J &nbsp; d = ${m.distance} nm<br><br>
-      <strong>Overall Efficiency: <span style="color:${sc}">${m.effPct}%</span></strong>
-    </div>
-    <div class="card">
-      <div class="ct">📚 References</div>
-      <div style="font-size:8px;line-height:1.8;color:rgba(240,244,255,0.4)">
-        Autumn et al., <em>Nature</em> 405:681-685, 2000<br>
-        Autumn et al., <em>PNAS</em> 99:12252, 2002<br>
-        Hansen & Autumn, <em>PNAS</em> 102:385, 2005<br>
-        Huber et al., <em>PNAS</em> 102:16293, 2005<br>
-        Irschick et al., <em>Biol J Linn Soc</em> 59:21, 1996
-      </div>
-    </div>
-  </div>
+<div class="two"><div>
+<div class="card" style="margin-bottom:9px"><div class="ct">🧬 Biological Parameters</div>
+<div class="pr"><span class="pn">Setae Density</span><span class="pv">${m.density.toLocaleString()} /mm²</span></div>
+<div class="pr"><span class="pn">Spatulae / Seta</span><span class="pv">${m.spatulae}</span></div>
+<div class="pr"><span class="pn">Lamellae Count</span><span class="pv">${m.lamCount}</span></div>
+<div class="pr"><span class="pn">Toe Pad Area</span><span class="pv">${m.padArea} mm²</span></div></div>
+<div class="card"><div class="ct">⚛️ Physics Parameters</div>
+<div class="pr"><span class="pn">Contact Angle θ</span><span class="pv">${m.angle}° (seta–surface)</span></div>
+<div class="pr"><span class="pn">Separation</span><span class="pv">${m.distance} nm</span></div>
+<div class="pr"><span class="pn">Hamaker Const.</span><span class="pv">${m.hamaker}×10⁻²⁰ J</span></div>
+<div class="pr"><span class="pn">Roughness</span><span class="pv">${m.roughness}</span></div>
+<div class="pr"><span class="pn">Contact Eff.</span><span class="pv">${m.efficiency}%</span></div></div>
+</div><div>
+<div class="fb" style="margin-bottom:9px">
+<strong>Van der Waals (London Dispersion) Formula</strong>
+F = (A × H) / (6π × d³)<br><br>
+A = 40,000 nm² | H = ${m.hamaker}×10⁻²⁰ J | d = ${m.distance} nm<br><br>
+θ = ${m.angle}° (seta–surface angle)<br>
+Contact angle efficiency: cos(θ) for θ&gt;30°<br><br>
+<strong>Combined Efficiency: <span style="color:${sc}">${m.effPct}%</span></strong><br>
+GREEN &gt;50% | ORANGE 20–50% | RED &lt;20%
 </div>
-<div class="foot"><span>GECKO ADHESION PHYSICS SIMULATOR</span><span>Van der Waals · Organic Paw Model</span><span>${m.timestamp}</span></div>
-</div>
-<script>window.onload=()=>{setTimeout(()=>{window.print();},400);window.onafterprint=()=>window.close();}<\/script>
+<div class="card"><div class="ct">📚 Key References</div>
+<div style="font-size:7.5px;line-height:1.8;color:rgba(238,242,255,.38)">
+Autumn et al., <em>Nature</em> 405:681, 2000 — seta force + critical angle<br>
+Autumn et al., <em>PNAS</em> 99:12252, 2002 — spatula vdW mechanism<br>
+Hansen &amp; Autumn, <em>PNAS</em> 102:385, 2005 — 5% efficiency<br>
+Huber et al., <em>PNAS</em> 102:16293, 2005 — 10 nN spatula at 0.3 nm<br>
+Irschick et al., <em>Biol J Linn Soc</em> 59:21, 1996 — whole-gecko 133 N
+</div></div>
+</div></div>
+<div class="foot"><span>GECKO ADHESION PHYSICS SIMULATOR</span><span>Per-Pad Setae · seta–surface contact angle model</span><span>${m.timestamp}</span></div>
+</div><script>window.onload=()=>{setTimeout(()=>window.print(),380);window.onafterprint=()=>window.close();}<\/script>
 </body></html>`;
-
     const w=window.open('','_blank','width=960,height=720');
     if(w){w.document.write(html);w.document.close();}
-    else alert('Allow pop-ups to generate PDF.');
-  }, 200);
+    else alert('Allow pop-ups to export PDF.');
+  },220);
 }
 
-window.addEventListener('load', init);
-window.addEventListener('beforeunload', ()=>{
+window.addEventListener('load',init);
+window.addEventListener('beforeunload',()=>{
   if(animFrameId) cancelAnimationFrame(animFrameId);
   if(renderer) renderer.dispose();
 });
