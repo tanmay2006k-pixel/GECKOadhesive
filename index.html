@@ -208,31 +208,26 @@ nav {
 .model-description p { font-size:16px; line-height:1.8; color:rgba(255,255,255,.7); }
 
 /* ── TIMELINE ── */
-/* THE FIX: position:relative + isolation:isolate contains the canvas */
 .timeline-section {
   padding: 90px 40px;
-  position: relative;    /* ← canvas is contained here */
-  overflow: hidden;      /* ← clips canvas to this section only */
-  isolation: isolate;    /* ← new stacking context, no bleed-through */
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
   background: rgba(6,10,18,.85);
 }
-
-/* Canvas is absolute (NOT fixed) — stays inside the section */
 #timeline-canvas {
-  position: absolute;   /* ← was fixed, now absolute */
+  position: absolute;
   top: 0; left: 0;
   width: 100% !important;
   height: 100% !important;
-  z-index: 0;           /* ← bottom of stacking context */
+  z-index: 0;
   pointer-events: none;
   display: block;
 }
-
-/* All content floats above the canvas */
 .timeline-header,
 .timeline {
   position: relative;
-  z-index: 2;           /* ← above canvas z-index:0 */
+  z-index: 2;
 }
 .timeline { max-width:1100px; margin:0 auto; }
 .timeline-header { text-align:center; margin-bottom:70px; }
@@ -282,6 +277,106 @@ nav {
 .timeline-item:hover .timeline-content { transform:translateY(-6px); box-shadow:0 20px 60px rgba(0,255,136,.22); border-color:rgba(0,255,136,.45); }
 .timeline-content h3 { font-family:'Orbitron',sans-serif; font-size:15px; margin-bottom:10px; color:var(--primary); letter-spacing:2px; }
 .timeline-content p { line-height:1.8; opacity:.88; font-size:14px; }
+
+/* ── TEAM SECTION (NEW) ── */
+.team-section {
+  padding: 90px 40px;
+  background: linear-gradient(180deg, rgba(8,10,22,.98), rgba(10,22,40,.98));
+  position: relative;
+  overflow: hidden;
+}
+.team-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 30px;
+  justify-content: center;
+  max-width: 1200px;
+  margin: 0 auto;
+  perspective: 1000px;
+}
+.team-card {
+  width: 340px;
+  padding: 2.5rem 2rem;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 255, 136, 0.15);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s;
+  transform-style: preserve-3d;
+}
+.team-card:hover {
+  box-shadow: 0 25px 60px rgba(0, 255, 136, 0.2);
+}
+.team-card-content {
+  text-align: center;
+  color: white;
+  transform: translateZ(30px); /* 3D pop out effect on tilt */
+}
+.team-avatar {
+  width: 130px;
+  height: 130px;
+  margin: 0 auto 1.8rem;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 4px solid rgba(0, 255, 136, 0.3);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  transition: all 0.4s ease;
+}
+.team-card:hover .team-avatar {
+  transform: scale(1.08);
+  border-color: var(--primary);
+}
+.team-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.team-card h3 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.team-role {
+  font-size: 1rem;
+  color: var(--secondary);
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+.team-bio {
+  font-size: 15px;
+  line-height: 1.6;
+  opacity: 0.85;
+  margin-bottom: 2rem;
+}
+.team-social-links {
+  display: flex;
+  justify-content: center;
+  gap: 1.2rem;
+}
+.team-social-icon {
+  color: white;
+  text-decoration: none;
+  font-size: 12px;
+  font-family: 'Orbitron', sans-serif;
+  padding: 0.6rem 1.2rem;
+  border-radius: 50px;
+  background: rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(0, 255, 136, 0.2);
+}
+.team-social-icon:hover {
+  background: rgba(0, 255, 136, 0.15);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 20px rgba(0, 255, 136, 0.2);
+  border-color: var(--primary);
+}
 
 /* ── DOWNLOAD ── */
 .download-section {
@@ -376,11 +471,11 @@ footer {
   .stat-value { font-size:18px; }
   .stat-label { font-size:9px; }
 
-  .about, .model-section, .download-section { padding: 56px 14px; }
+  .about, .model-section, .team-section, .download-section { padding: 56px 14px; }
   .section-title { margin-bottom:36px; }
   .feature-card { padding:22px 18px; }
 
-  /* Timeline mobile — stack vertically, no alternating */
+  /* Timeline mobile */
   .timeline-section { padding: 56px 14px; }
   .timeline-item,
   .timeline-item:nth-child(even) {
@@ -418,8 +513,9 @@ footer {
     <ul class="nav-links">
       <li><a href="#home">Home</a></li>
       <li><a href="#model">Model</a></li>
-      <li><a href="#timeline">Timeline</a></li>
-      <li><a href="#download">Resources</a></li>
+     
+      <li><a href="#team">Team</a></li>
+
     </ul>
   </nav>
 </header>
@@ -486,9 +582,7 @@ footer {
 </section>
 
 <section class="timeline-section" id="timeline">
-  <!-- IMPORTANT: position:absolute, not fixed — stays inside this section only -->
   <canvas id="timeline-canvas"></canvas>
-
   <div class="timeline-header">
     <h2 class="section-title">Evolution of Gecko Technology</h2>
   </div>
@@ -528,6 +622,56 @@ footer {
   </div>
 </section>
 
+<section class="team-section" id="team">
+  <h2 class="section-title">Research Team</h2>
+  <div class="team-container">
+    
+  
+   
+
+    <div class="team-card">
+      <div class="team-card-content">
+        <div class="team-avatar">
+          <img src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=400&fit=crop" alt="Jordan Lee">
+        </div>
+        <h3>NILE LOPES</h3>
+        <p class="team-role">nile.jpg</p>
+        <p class="team-bio">SAP ID :70412500010</p>
+        
+       
+         
+        </div>
+      </div>
+    
+    <div class="team-card">
+      <div class="team-card-content">
+        <div class="team-avatar">
+          <img src="avi.jpg">
+        </div>
+        <h3>AVI JAIN </h3>
+        <p class="team-role">SAP ID : 70412500056</p>
+        <p class="team-bio"></p>
+      
+          
+          
+        </div>
+      </div>
+   <div class="team-card">
+      <div class="team-card-content">
+        <div class="team-avatar">
+          <img src="tanmayk.jpg">
+        </div>
+        <h3>TANMAY KADAM</h3>
+        <p class="team-role">SAP ID : 70412500009</p>
+        <p class="team-bio"></p>
+        
+        
+        </div>
+      </div>
+
+  </div>
+</section>
+
 <section class="download-section" id="download">
   <div class="download-card">
     <h2>Technical Presentation</h2>
@@ -538,7 +682,6 @@ footer {
 
 <footer><p>&copy; GECKO ADHESION TECHNOLOGY RESEARCH</p></footer>
 
-<!-- OVERLAY -->
 <div class="overlay-page" id="overlayPage">
   <button class="overlay-close" onclick="closeOverlay()">✕</button>
   <div class="overlay-inner">
@@ -578,6 +721,9 @@ footer {
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.7.0/vanilla-tilt.min.js"></script>
+
 <script>
 /* ── OVERLAY ── */
 function openOverlay(){document.getElementById('overlayPage').classList.add('open');document.body.style.overflow='hidden';}
@@ -649,7 +795,7 @@ function animHero(){
 }
 animHero();
 
-/* ── TIMELINE BACKGROUND (ABSOLUTE, NOT FIXED) ── */
+/* ── TIMELINE BACKGROUND ── */
 const tlSec=document.getElementById('timeline');
 const tlCv=document.getElementById('timeline-canvas');
 const tlScene=new THREE.Scene();
@@ -664,7 +810,6 @@ function sizeTl(){
 }
 sizeTl();
 
-/* Helix */
 const hg=new THREE.BufferGeometry();
 const hp=[],hc=[];
 for(let i=0;i<500;i++){
@@ -676,7 +821,6 @@ hg.setAttribute('color',new THREE.Float32BufferAttribute(hc,3));
 const helix=new THREE.Points(hg,new THREE.PointsMaterial({size:.12,vertexColors:true,transparent:true,opacity:.65,blending:THREE.AdditiveBlending}));
 tlScene.add(helix);
 
-/* Particles — fewer on mobile for performance */
 const isMob=window.innerWidth<700;
 const pc=isMob?600:1600;
 const pg=new THREE.BufferGeometry();
@@ -718,6 +862,17 @@ document.querySelectorAll('a[href^="#"]').forEach(a=>{
   a.addEventListener('click',e=>{e.preventDefault();const t=document.querySelector(a.getAttribute('href'));if(t)t.scrollIntoView({behavior:'smooth',block:'start'});});
 });
 
+/* ── INITIALIZE VANILLA TILT FOR TEAM CARDS ── */
+VanillaTilt.init(document.querySelectorAll(".team-card"), {
+  max: 15,
+  speed: 800,
+  scale: 1.05,
+  glare: true,
+  "max-glare": 0.3, /* Lowered slightly to look cleaner against the neon */
+  gyroscope: true,
+  reverse: true
+});
+
 /* ── DOWNLOAD ── */
 function downloadPPT(){
   const b=new Blob([`GECKO TECHNOLOGY TIMELINE\n\n1872 First Study\n1968 Electron Microscopy\n2000 Van der Waals\n2006 Synthetic Tape\n2014 DARPA Z-Man\n2017 NASA ISS\n2021 Self-Cleaning\n2025 AI Optimization\n\nSpecs: 500K setae | 200nm spatulae | 10N/cm²`],{type:'text/plain'});
@@ -727,9 +882,3 @@ function downloadPPT(){
 </script>
 </body>
 </html>
-
-
-
-
-
-
