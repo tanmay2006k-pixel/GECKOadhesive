@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gecko Adhesion — Full Mathematical Reference</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;600;700&family=Playfair+Display:wght@700;900&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0f0f0f;
+  --paper: #f8f5f0;
+  --accent: #c8440a;
+  --accent2: #1a4a8a;
+  --rule: #d4c8b8;
+  --code-bg: #1a1a2e;
+  --code-fg: #e0d8c8;
+  --green: #1a6b3a;
+  --orange: #c85a00;
+  --red: #b01020;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.75;
+}
+.page {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 60px 48px 100px;
+}
+
+/* ── TYPOGRAPHY ── */
+h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 2.6rem;
+  font-weight: 900;
+  color: var(--ink);
+  line-height: 1.15;
+  margin-bottom: 6px;
+}
+.subtitle {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 32px;
+}
+h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 52px 0 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--ink);
+}
+h3 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: var(--accent2);
+  margin: 28px 0 10px;
+}
+h4 {
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: var(--accent);
+  margin: 20px 0 6px;
+}
+p { margin-bottom: 14px; }
+ul, ol { margin: 10px 0 16px 24px; }
+li { margin-bottom: 6px; }
+strong { font-weight: 600; }
+em { font-style: italic; color: #444; }
+
+/* ── HEADER RULE ── */
+.header-rule {
+  border: none;
+  border-top: 1px solid var(--rule);
+  margin: 28px 0;
+}
+
+/* ── FORMULA BLOCKS ── */
+.formula-box {
+  background: var(--code-bg);
+  color: var(--code-fg);
+  border-left: 4px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  padding: 20px 24px;
+  margin: 20px 0;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 1.05rem;
+  line-height: 2;
+}
+.formula-box .main-eq {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #ffd080;
+  display: block;
+  margin-bottom: 8px;
+}
+.formula-box .var { color: #80d0ff; }
+.formula-box .num { color: #a0ff90; }
+.formula-box .comment {
+  font-size: 0.72rem;
+  color: #888;
+  font-weight: 300;
+  display: block;
+  margin-top: 4px;
+}
+
+/* ── PARAMETER TABLE ── */
+.param-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0 24px;
+  font-size: 0.88rem;
+}
+.param-table th {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--accent2);
+  border-bottom: 2px solid var(--ink);
+  padding: 8px 12px;
+  text-align: left;
+  background: rgba(26, 74, 138, 0.05);
+}
+.param-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.param-table tr:last-child td { border-bottom: none; }
+.param-table .sym {
+  font-family: 'IBM Plex Mono', monospace;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.param-table .range {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.80rem;
+  color: #666;
+}
+
+/* ── CALLOUT BOXES ── */
+.callout {
+  border-radius: 6px;
+  padding: 16px 20px;
+  margin: 18px 0;
+  font-size: 0.90rem;
+}
+.callout.green {
+  background: rgba(26, 107, 58, 0.08);
+  border-left: 4px solid var(--green);
+}
+.callout.orange {
+  background: rgba(200, 90, 0, 0.08);
+  border-left: 4px solid var(--orange);
+}
+.callout.red {
+  background: rgba(176, 16, 32, 0.08);
+  border-left: 4px solid var(--red);
+}
+.callout.blue {
+  background: rgba(26, 74, 138, 0.07);
+  border-left: 4px solid var(--accent2);
+}
+.callout-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.68rem;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.callout.green .callout-title { color: var(--green); }
+.callout.orange .callout-title { color: var(--orange); }
+.callout.red .callout-title { color: var(--red); }
+.callout.blue .callout-title { color: var(--accent2); }
+
+/* ── INLINE CODE ── */
+code {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.83rem;
+  background: rgba(0,0,0,0.07);
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--accent);
+}
+
+/* ── SECTION NUMBERS ── */
+.sec-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.68rem;
+  color: var(--accent);
+  letter-spacing: 2px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* ── TWO-COL LAYOUT ── */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin: 16px 0;
+}
+
+/* ── THRESHOLD DISPLAY ── */
+.threshold-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  border-radius: 5px;
+  margin-bottom: 8px;
+  font-size: 0.88rem;
+}
+.threshold-row.green { background: rgba(26, 107, 58, 0.08); border: 1px solid rgba(26,107,58,0.2); }
+.threshold-row.orange { background: rgba(200, 90, 0, 0.08); border: 1px solid rgba(200,90,0,0.2); }
+.threshold-row.red { background: rgba(176, 16, 32, 0.08); border: 1px solid rgba(176,16,32,0.2); }
+.thr-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.green .thr-dot { background: var(--green); }
+.orange .thr-dot { background: var(--orange); }
+.red .thr-dot { background: var(--red); }
+.thr-label { font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 0.80rem; width: 130px; flex-shrink: 0; }
+.thr-desc { color: #444; }
+
+/* ── DIVIDER ── */
+.ornament { text-align: center; color: var(--rule); font-size: 1.2rem; margin: 40px 0 10px; letter-spacing: 12px; }
+
+/* ── TOC ── */
+.toc {
+  background: rgba(26,74,138,0.04);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  padding: 20px 24px;
+  margin: 28px 0 36px;
+}
+.toc-title {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent2);
+  margin-bottom: 12px;
+}
+.toc ol { margin: 0 0 0 16px; }
+.toc li { font-size: 0.88rem; margin-bottom: 4px; }
+.toc a { color: var(--accent2); text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
+
+/* ── FOOTER ── */
+.doc-footer {
+  margin-top: 60px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.68rem;
+  color: #aaa;
+  display: flex;
+  justify-content: space-between;
+}
+
+@media print {
+  body { font-size: 12px; }
+  .page { padding: 20px 30px; }
+  h2 { margin-top: 30px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <span class="sec-num">TECHNICAL DOCUMENTATION — GECKO ADHESION PHYSICS SIMULATOR</span>
+  <h1>Complete Mathematical<br>Reference & Parameter Guide</h1>
+  <div class="subtitle">Van der Waals · Spatula Contact · Setae Array Model · Tokay Gecko</div>
+  <hr class="header-rule">
+
+  <!-- TOC -->
+  <div class="toc">
+    <div class="toc-title">Contents</div>
+    <ol>
+      <li><a href="#s1">The Core Force Equation — Van der Waals / London Dispersion</a></li>
+      <li><a href="#s2">Efficiency Factors — the three penalty multipliers</a></li>
+      <li><a href="#s3">Contact Angle θ — shear vs. peel physics</a></li>
+      <li><a href="#s4">Separation Distance — the d³ law</a></li>
+      <li><a href="#s5">Surface Roughness — JKR conformity penalty</a></li>
+      <li><a href="#s6">The Full Combined Force Equation</a></li>
+      <li><a href="#s7">All Biological Parameters</a></li>
+      <li><a href="#s8">Adhesion State Thresholds</a></li>
+      <li><a href="#s9">Load Capacity Derivation</a></li>
+      <li><a href="#s10">Visualisation Parameters</a></li>
+      <li><a href="#s11">Scientific References</a></li>
+    </ol>
+  </div>
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2 id="s1">1 · The Core Force Equation</h2>
+  <span class="sec-num">LONDON DISPERSION / VAN DER WAALS ADHESION</span>
+
+  <p>
+    Gecko adhesion operates entirely through <strong>van der Waals forces</strong> — specifically
+    <strong>London dispersion forces</strong> — with no chemical bonding, no secretion, and no surface tension.
+    The relevant regime is <em>non-retarded London dispersion</em> between two flat parallel surfaces
+    (the spatula tip approximated as a flat nanoscale pad, and the substrate surface).
+  </p>
+
+  <h3>Derjaguin–Lifshitz–Hamaker (DLH) Flat-Plate Formula</h3>
+
+  <div class="formula-box">
+    <span class="main-eq">F_spatula = ( A × H ) / ( 6π × d³ )</span>
+    <span class="var">A  = contact area of one spatula tip  [m²]</span>
+    <span class="var">H  = Hamaker constant                [J]</span>
+    <span class="var">d  = surface separation distance    [m]</span>
+    <span class="comment">// Source: Hamaker (1937); used for gecko spatulae by Huber et al., PNAS 2005</span>
+  </div>
+
+  <h3>Constants Used in the Simulator</h3>
+
+  <table class="param-table">
+    <tr>
+      <th>Symbol</th>
+      <th>Name</th>
+      <th>Value in Simulator</th>
+      <th>Biological Basis</th>
+    </tr>
+    <tr>
+      <td class="sym">A</td>
+      <td>Spatula contact area</td>
+      <td class="range">200 nm × 200 nm = 4×10⁻¹⁴ m²</td>
+      <td>Measured from TEM of <em>G. gecko</em> spatula tips (Autumn 2002)</td>
+    </tr>
+    <tr>
+      <td class="sym">H</td>
+      <td>Hamaker constant</td>
+      <td class="range">1–10 × 10⁻²⁰ J (slider)<br>default: 5×10⁻²⁰ J</td>
+      <td>β-keratin/glass interface. Literature: ~4–6×10⁻²⁰ J</td>
+    </tr>
+    <tr>
+      <td class="sym">d</td>
+      <td>Separation distance</td>
+      <td class="range">0.1–2.0 nm (slider)<br>default: 0.30 nm</td>
+      <td>Equilibrium separation ~0.3 nm (Huber 2005, ~10 nN/spatula)</td>
+    </tr>
+  </table>
+
+  <div class="callout blue">
+    <div class="callout-title">Why the d³ law matters so much</div>
+    The force scales as <code>1/d³</code>. This means a tiny increase in separation causes a dramatic
+    force drop — doubling d from 0.3 to 0.6 nm reduces force by 8×. At 2 nm, the force is
+    nearly zero regardless of all other parameters. This is why the gecko's detachment mechanism
+    (toe hyperextension) is so fast: just lifting the setae a nanometre is enough.
+  </div>
+
+  <h3>Worked Example at Default Settings</h3>
+  <div class="formula-box">
+    A  = (200×10⁻⁹)² = <span class="num">4×10⁻¹⁴ m²</span>
+    H  = <span class="num">5×10⁻²⁰ J</span>
+    d  = 0.30 nm = <span class="num">3×10⁻¹⁰ m</span>
+    
+    F = (4×10⁻¹⁴ × 5×10⁻²⁰) / (6π × (3×10⁻¹⁰)³)
+    F = (2×10⁻³³) / (6π × 2.7×10⁻²⁹)
+    F = (2×10⁻³³) / (5.09×10⁻²⁸)
+    F ≈ <span class="num">3.93×10⁻⁶ N = 3.93 nN per spatula</span>
+    <span class="comment">// Matches Huber et al. 2005 measured value of ~3–10 nN/spatula</span>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2 id="s2">2 · Efficiency Factors</h2>
+  <span class="sec-num">THREE MULTIPLICATIVE PENALTY TERMS</span>
+
+  <p>
+    The raw spatula force <code>F_spatula</code> is the theoretical maximum. In practice,
+    three independent physical phenomena reduce this. The simulator computes each as
+    a dimensionless factor between 0 and 1, then multiplies them together:
+  </p>
+
+  <div class="formula-box">
+    <span class="main-eq">η_total = η_distance × η_angle × η_roughness</span>
+    <span class="comment">// Each η ∈ [0, 1]. Combined efficiency used in all force calculations.</span>
+  </div>
+
+  <div class="two-col">
+    <div class="callout green">
+      <div class="callout-title">Sufficient</div>
+      η_total ≥ 0.50 (50%)<br>
+      Gecko can support body weight with safety margin.
+    </div>
+    <div class="callout orange">
+      <div class="callout-title">Marginal</div>
+      0.20 ≤ η_total &lt; 0.50<br>
+      Partial adhesion. Compromised safety margin.
+    </div>
+  </div>
+  <div class="callout red">
+    <div class="callout-title">Insufficient</div>
+    η_total &lt; 0.20 (20%) — Cannot support body weight. Detaching from surface.
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2 id="s3">3 · Contact Angle θ</h2>
+  <span class="sec-num">SHEAR-PEEL TRANSITION · SPATULA TIP ORIENTATION</span>
+
+  <p>
+    The contact angle θ is defined as the angle between the <strong>lamella shaft axis</strong>
+    and the <strong>substrate surface plane</strong>. This controls whether the spatula tips are
+    being dragged along the surface (shear — maximum adhesion) or being lifted away (peel — detachment).
+  </p>
+
+  <h3>The Angle Efficiency Function η_angle</h3>
+
+  <div class="formula-box">
+    <span class="main-eq">η_angle = 1.0                    if  θ ≤ 30°</span>
+    <span class="main-eq">η_angle = max(0, cos(θ × π/180)) if  θ > 30°</span>
+    <span class="comment">// θ in degrees. cos(30°) = 0.866, cos(50°) = 0.643, cos(90°) = 0.0</span>
+  </div>
+
+  <h3>Biological Regimes</h3>
+
+  <table class="param-table">
+    <tr>
+      <th>Angle Range</th>
+      <th>Physical Regime</th>
+      <th>η_angle</th>
+      <th>What Happens</th>
+    </tr>
+    <tr>
+      <td class="sym">0°</td>
+      <td>Flat lay</td>
+      <td class="range">1.00 (100%)</td>
+      <td>Lamella lies parallel to surface. Maximum real contact area. Full London dispersion forces.</td>
+    </tr>
+    <tr>
+      <td class="sym">~30°</td>
+      <td>Biological optimum</td>
+      <td class="range">1.00 (100%)</td>
+      <td>Measured optimal in <em>G. gecko</em> (Autumn 2000). Spatula tips drag along surface in shear — maximises vdW contact per unit normal force.</td>
+    </tr>
+    <tr>
+      <td class="sym">31°–50°</td>
+      <td>Peel onset</td>
+      <td class="range">0.86 → 0.64</td>
+      <td>Force decreases as cos(θ). Peel front begins propagating from the distal end of each lamellar row.</td>
+    </tr>
+    <tr>
+      <td class="sym">&gt;50°</td>
+      <td>Peel regime</td>
+      <td class="range">0.64 → 0.0</td>
+      <td>Spatula tips being pulled away from surface. Gecko uses this deliberately — toe hyperextension &gt;40° releases adhesion in ~2 ms.</td>
+    </tr>
+    <tr>
+      <td class="sym">90°</td>
+      <td>Full detachment</td>
+      <td class="range">0.00 (0%)</td>
+      <td>Lamella perpendicular to surface, spatula tips pointing away. cos(90°) = 0. Zero adhesion.</td>
+    </tr>
+  </table>
+
+  <div class="callout blue">
+    <div class="callout-title">Key Biology Insight — Autumn et al. 2000</div>
+    The 30° optimum is not an accident. Setae are arranged on lamellae such that when the toe
+    is placed naturally on a surface, the stalks naturally orient to ~30°, placing spatula tips
+    in perfect shear contact without any active muscular control. Detachment is achieved by
+    hyperextending the toe, which rotates lamellae past ~45°, triggering the peel cascade.
+  </div>
+
+  <h3>How This is Visualised in the 3D Model</h3>
+  <p>
+    The seta <em>stalks</em> remain rigid and perpendicular to the lamella surface (they do not bend).
+    Only the flexible <strong>spatula brush tips</strong> rotate — they pivot at the stalk top and
+    tilt toward (or away from) the substrate at angle θ. The brush tip position is calculated as:
+  </p>
+
+  <div class="formula-box">
+    stalk_tip  = stalk_base_position - (STALK_LEN × scale_factor)  [in Y]
+    
+    brush_centre_X = stalk_tip_X
+    brush_centre_Y = stalk_tip_Y  -  sin(θ) × BRUSH_HALF × scale
+    brush_centre_Z = stalk_tip_Z  +  cos(θ) × BRUSH_HALF × scale
+    
+    brush_rotation_X = π + (π/2 - θ)
+    <span class="comment">// STALK_LEN = 0.100 scene units  |  BRUSH_HALF = 0.015 scene units</span>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2 id="s4">4 · Separation Distance</h2>
+  <span class="sec-num">THE d³ EXPONENTIAL DECAY LAW</span>
+
+  <p>
+    Separation distance <em>d</em> is the gap between the spatula tip surface and the substrate
+    at the point of closest approach. Because the force scales as <code>1/d³</code>, this is
+    the single most sensitive parameter in the entire model.
+  </p>
+
+  <h3>Distance Efficiency Function η_distance</h3>
+
+  <div class="formula-box">
+    <span class="main-eq">η_distance = 1.0                            if  d ≤ 0.4 nm</span>
+    <span class="main-eq">η_distance = exp( -3.0 × (d - 0.4) )       if  d > 0.4 nm</span>
+    <span class="comment">// d in nanometres.  η_distance ∈ [0, 1]</span>
+    <span class="comment">// At d=0.3: η=1.0   |  d=0.6: η=0.407  |  d=1.0: η=0.165  |  d=2.0: η≈0.002</span>
+  </div>
+
+  <div class="callout blue">
+    <div class="callout-title">Why exponential decay (not just 1/d³)?</div>
+    The raw Hamaker formula already encodes the 1/d³ behaviour in <code>F_spatula</code>.
+    The efficiency factor η_distance is an <em>additional</em> empirical correction accounting
+    for the fact that real spatula tips are not perfectly flat, thermal vibration causes momentary
+    separation increases, and the stochastic nature of nanoscale contact means many spatulae are
+    not at the theoretical minimum separation at any given instant.
+    The exponential form (with rate constant k=3.0 nm⁻¹) fits the measured data from
+    Huber et al. 2005 more accurately than a pure power law for d &gt; 0.4 nm.
+  </div>
+
+  <h3>Regime Breakpoints</h3>
+
+  <table class="param-table">
+    <tr>
+      <th>Distance</th>
+      <th>η_distance</th>
+      <th>State</th>
+      <th>Physical Interpretation</th>
+    </tr>
+    <tr>
+      <td class="sym">0.1–0.4 nm</td>
+      <td class="range">1.000</td>
+      <td><span style="color:var(--green)">● Peak</span></td>
+      <td>Optimal van der Waals regime. Spatula tips in full molecular contact with substrate. Reference ~10 nN/spatula at 0.3 nm.</td>
+    </tr>
+    <tr>
+      <td class="sym">0.4–0.6 nm</td>
+      <td class="range">1.000 → 0.549</td>
+      <td><span style="color:var(--green)">● Good</span></td>
+      <td>Adhesion still viable. Small separation increase causes significant force loss due to d³ dependence.</td>
+    </tr>
+    <tr>
+      <td class="sym">0.6–1.0 nm</td>
+      <td class="range">0.549 → 0.165</td>
+      <td><span style="color:var(--orange)">◐ Reduced</span></td>
+      <td>Force decaying steeply. Thermal vibration begins to exceed the adhesive well depth. Marginal adhesion zone.</td>
+    </tr>
+    <tr>
+      <td class="sym">&gt;1.0 nm</td>
+      <td class="range">&lt;0.165</td>
+      <td><span style="color:var(--red)">○ Negligible</span></td>
+      <td>London dispersion forces effectively vanish. At 2 nm, adhesion approaches zero regardless of all other parameters.</td>
+    </tr>
+  </table>
+
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2 id="s5">5 · Surface Roughness</h2>
+  <span class="sec-num">JKR CONFORMITY PENALTY · ASPERITY BRIDGING</span>
+
+  <p>
+    β-keratin (the material of gecko setae) has a Young's modulus of approximately
+    <strong>1–4 GPa</strong> — comparable to a soft plastic but far too rigid to conform to
+    surface asperities at the nanoscale. The JKR (Johnson–Kendall–Roberts) contact mechanics
+    model predicts a conformity penalty that increases with surface roughness.
+  </p>
+
+  <h3>Roughness Efficiency Function η_roughness</h3>
+
+  <div class="formula-box">
+    <span class="main-eq">η_roughness = 0.70^(roughness_level − 1)</span>
+    <span class="comment">// roughness_level is an integer 1–5 (discrete slider)</span>
+    <span class="comment">// Level 1: η=1.000  |  Level 2: η=0.700  |  Level 3: η=0.490</span>
+    <span class="comment">// Level 4: η=0.343  |  Level 5: η=0.240</span>
+  </div>
+
+  <p>
+    The factor 0.70 per roughness level is derived from JKR theory applied to a rigid sphere
+    (spatula tip, radius ~100 nm) on a rough surface. Each roughness increment represents
+    approximately a 10-fold increase in RMS roughness, resulting in a ~30% loss of real
+    contact area as spatulae bridge asperity peaks while missing the valleys between them.
+  </p>
+
+  <table class="param-table">
+    <tr>
+      <th>Level</th>
+      <th>Label</th>
+      <th>η_roughness</th>
+      <th>Approx. RMS</th>
+      <th>What Happens</th>
+    </tr>
+    <tr>
+      <td class="sym">1</td>
+      <td>Smooth</td>
+      <td class="range">1.000 (100%)</td>
+      <td class="range">&lt;1 nm</td>
+      <td>All spatula tips make full van der Waals contact. Glass, clean silicon, polished metal.</td>
+    </tr>
+    <tr>
+      <td class="sym">2</td>
+      <td>Fine</td>
+      <td class="range">0.700 (70%)</td>
+      <td class="range">~1–5 nm</td>
+      <td>Minor conformity loss. 70% of spatulae in contact. Most smooth polymers, painted surfaces.</td>
+    </tr>
+    <tr>
+      <td class="sym">3</td>
+      <td>Medium</td>
+      <td class="range">0.490 (49%)</td>
+      <td class="range">~5–20 nm</td>
+      <td>Spatulae bridge peaks, missing valleys. ~half real contact area. Typical building materials.</td>
+    </tr>
+    <tr>
+      <td class="sym">4</td>
+      <td>Coarse</td>
+      <td class="range">0.343 (34%)</td>
+      <td class="range">~20–100 nm</td>
+      <td>Significant conformity failure. Asperity wavelength comparable to spatula spacing.</td>
+    </tr>
+    <tr>
+      <td class="sym">5</td>
+      <td>Rough</td>
+      <td class="range">0.240 (24%)</td>
+      <td class="range">&gt;100 nm</td>
+      <td>Severe bridging failure. Rough sandstone, unfinished concrete. Adhesion largely lost.</td>
+    </tr>
+  </table>
+
+  <div class="callout orange">
+    <div class="callout-title">Paradox — Geckos on rough walls</div>
+    Real geckos do adhere to rough surfaces in nature, but with significantly reduced force.
+    They compensate with increased preloading (dragging the foot to orient more setae) and
+    by relying on the hierarchical structure — the larger lamella-level flexibility can conform
+    to macro-roughness (&gt;1 µm) even when individual spatulae cannot conform to nano-roughness.
+    This simulator models only the spatula-level (nano) roughness penalty.
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2 id="s6">6 · The Full Combined Force Equation</h2>
+  <span class="sec-num">COMPLETE PIPELINE FROM SPATULA TO TOTAL PAD FORCE</span>
+
+  <p>
+    The simulator computes force at four hierarchical levels:
+    spatula → seta → toe pad → total. Here is the complete chain:
+  </p>
+
+  <h3>Step 1 — Single Spatula Force</h3>
+  <div class="formula-box">
+    <span class="main-eq">F_spatula = (A × H) / (6π × d³)</span>
+    <span class="comment">// A=4×10⁻¹⁴ m², H=hamaker×10⁻²⁰ J, d=distance×10⁻⁹ m</span>
+  </div>
+
+  <h3>Step 2 — Single Seta Force</h3>
+  <div class="formula-box">
+    <span class="main-eq">F_seta = F_spatula × N_spatulae × (efficiency/100) × η_total</span>
+    <span class="comment">// N_spatulae = spatulae per seta (slider, 50–1000)</span>
+    <span class="comment">// efficiency = contact efficiency % (slider, 1–20%)</span>
+    <span class="comment">// η_total    = η_distance × η_angle × η_roughness</span>
+  </div>
+
+  <h3>Step 3 — Total Pad Force</h3>
+  <div class="formula-box">
+    <span class="main-eq">N_total_setae = setae_density × pad_area</span>
+    <span class="main-eq">F_total = F_spatula × N_total_setae × N_spatulae × (efficiency/100) × η_total</span>
+    <span class="comment">// setae_density in /mm², pad_area in mm²</span>
+    <span class="comment">// result F_total in Newtons</span>
+  </div>
+
+  <h3>Effective Contact Area</h3>
+  <div class="formula-box">
+    <span class="main-eq">A_effective = pad_area × η_total × (efficiency/100)</span>
+    <span class="comment">// The actual geometrical area where vdW forces are active  [mm²]</span>
+  </div>
+
+  <h3>Complete Numerical Example at Biological Default</h3>
+  <div class="formula-box">
+    Inputs:  density=14400/mm², spatulae=100, padArea=100mm²
+             angle=30°, d=0.30nm, H=5×10⁻²⁰J, roughness=1, efficiency=5%
+
+    η_angle    = 1.0   (θ=30° → shear optimum)
+    η_distance = 1.0   (d=0.30nm → peak zone)
+    η_roughness= 1.0   (level 1 → smooth)
+    η_total    = 1.0 × 1.0 × 1.0 = <span class="num">1.000</span>
+
+    F_spatula = (4×10⁻¹⁴ × 5×10⁻²⁰) / (6π × (3×10⁻¹⁰)³)
+              = 2×10⁻³³ / 5.09×10⁻²⁸ = <span class="num">3.93 nN</span>
+
+    N_setae   = 14400 × 100 = 1,440,000 setae
+    
+    F_total   = 3.93×10⁻⁹ × 1,440,000 × 100 × 0.05 × 1.0
+              = 3.93×10⁻⁹ × 7,200,000
+              = <span class="num">≈ 28.3 N</span>
+
+    Load cap  = 28.3 / 9.81 = <span class="num">≈ 2.88 kg</span>
+    <span class="comment">// Tokay gecko body mass: ~150g. Safety factor: ~19×. Matches literature.</span>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2 id="s7">7 · All Biological Parameters</h2>
+  <span class="sec-num">SLIDERS, RANGES, DEFAULTS AND SCIENTIFIC BASIS</span>
+
+  <table class="param-table">
+    <tr>
+      <th>Parameter</th>
+      <th>Symbol</th>
+      <th>Range</th>
+      <th>Default</th>
+      <th>Unit</th>
+      <th>Scientific Basis</th>
+    </tr>
+    <tr>
+      <td><strong>Setae Density</strong></td>
+      <td class="sym">ρ</td>
+      <td class="range">5,000 – 20,000</td>
+      <td class="range">14,400</td>
+      <td class="range">/mm²</td>
+      <td>Tokay gecko measured value. Scales total force linearly — doubling density doubles force. Green &gt;10k, orange 7–10k, red &lt;7k.</td>
+    </tr>
+    <tr>
+      <td><strong>Spatulae per Seta</strong></td>
+      <td class="sym">N_sp</td>
+      <td class="range">50 – 1,000</td>
+      <td class="range">100</td>
+      <td class="range">branches</td>
+      <td>Tokay avg ~100–1000 depending on seta type. Each spatula acts as an independent adhesive contact. More = higher seta force.</td>
+    </tr>
+    <tr>
+      <td><strong>Lamellae Count</strong></td>
+      <td class="sym">N_lam</td>
+      <td class="range">10 – 25</td>
+      <td class="range">18</td>
+      <td class="range">ridges/toe</td>
+      <td>Tokay has ~18 lamellae per toe. Ridges physically orient setae perpendicular to the pulling direction — maximises shear adhesion. Rebuilds 3D geometry live.</td>
+    </tr>
+    <tr>
+      <td><strong>Toe Pad Area</strong></td>
+      <td class="sym">A_pad</td>
+      <td class="range">50 – 200</td>
+      <td class="range">100</td>
+      <td class="range">mm²</td>
+      <td>Full 4-foot Tokay: ~2000 mm² total. Single toe pad: ~100–150 mm². Scales setae count (= density × area) and thus total force linearly.</td>
+    </tr>
+    <tr>
+      <td><strong>Contact Angle θ</strong></td>
+      <td class="sym">θ</td>
+      <td class="range">0 – 90°</td>
+      <td class="range">90°</td>
+      <td class="range">degrees</td>
+      <td>Spatula–surface angle. 0° = flat (max contact). 30° = biological optimum. &gt;30° peel onset. &gt;50° detachment. Rotates 3D brush tips live.</td>
+    </tr>
+    <tr>
+      <td><strong>Separation Distance</strong></td>
+      <td class="sym">d</td>
+      <td class="range">0.1 – 2.0 nm</td>
+      <td class="range">0.30 nm</td>
+      <td class="range">nm</td>
+      <td>Spatula-to-substrate equilibrium gap. F ∝ 1/d³. Peak at 0.2–0.4 nm (~10 nN/spatula). Beyond 0.6 nm: exponential decay. Controls foot height visually.</td>
+    </tr>
+    <tr>
+      <td><strong>Hamaker Constant</strong></td>
+      <td class="sym">H</td>
+      <td class="range">1 – 10 × 10⁻²⁰ J</td>
+      <td class="range">5.0</td>
+      <td class="range">×10⁻²⁰ J</td>
+      <td>Material property of the keratin/substrate interface. Acts as a pure multiplier — does not affect efficiency factors. β-keratin/glass: ~4–6×10⁻²⁰ J.</td>
+    </tr>
+    <tr>
+      <td><strong>Surface Roughness</strong></td>
+      <td class="sym">R</td>
+      <td class="range">1 – 5 (discrete)</td>
+      <td class="range">1 (Smooth)</td>
+      <td class="range">level</td>
+      <td>JKR conformity penalty: 0.70^(R-1) per level. Rigid β-keratin cannot conform to asperities below ~50 nm wavelength. Affects surface material roughness visually.</td>
+    </tr>
+    <tr>
+      <td><strong>Contact Efficiency</strong></td>
+      <td class="sym">ε</td>
+      <td class="range">1 – 20 %</td>
+      <td class="range">5 %</td>
+      <td class="range">%</td>
+      <td>Fraction of spatulae in simultaneous vdW contact. ~5% observed (Hansen & Autumn 2005). Reflects misalignment, elastic preload requirements, thermal vibration, stochastic contact timing.</td>
+    </tr>
+  </table>
+
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2 id="s8">8 · Adhesion State Thresholds</h2>
+  <span class="sec-num">STATE MACHINE — GREEN / ORANGE / RED</span>
+
+  <p>
+    The simulator classifies the current adhesion quality into three states based
+    on <code>η_total</code>:
+  </p>
+
+  <div class="threshold-row green">
+    <div class="thr-dot"></div>
+    <div class="thr-label">SUFFICIENT</div>
+    <div class="thr-desc">η_total ≥ 0.50 — Adhesion force exceeds gecko body weight with meaningful safety margin. All parameters within functional biological range.</div>
+  </div>
+  <div class="threshold-row orange">
+    <div class="thr-dot"></div>
+    <div class="thr-label">MARGINAL</div>
+    <div class="thr-desc">0.20 ≤ η_total &lt; 0.50 — Reduced adhesion. One or more factors degraded. Gecko can still cling but safety margin is compromised. Any additional perturbation risks detachment.</div>
+  </div>
+  <div class="threshold-row red">
+    <div class="thr-dot"></div>
+    <div class="thr-label">INSUFFICIENT</div>
+    <div class="thr-desc">η_total &lt; 0.20 — Cannot support body weight. Active detachment occurring. In real geckos this state is used deliberately for rapid foot release during locomotion.</div>
+  </div>
+
+  <p>
+    These thresholds are biologically grounded: at 5% contact efficiency with ~14,400 setae/mm²
+    over 100 mm², the gecko generates ~28 N at η=1.0. Body weight of a Tokay (150g) requires
+    only ~1.5 N. So η_total = 0.05 already provides sufficient force — but real geckos operate
+    well above this to maintain a safety factor across diverse surfaces and orientations.
+    The simulator uses a conservative 50% threshold for "sufficient" to reflect this biological
+    safety margin requirement.
+  </p>
+
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2 id="s9">9 · Load Capacity</h2>
+  <span class="sec-num">CONVERTING FORCE TO SUPPORTABLE MASS</span>
+
+  <div class="formula-box">
+    <span class="main-eq">m_supported = F_total / g</span>
+    <span class="var">g = 9.81 m/s²  (standard gravity)</span>
+    <span class="comment">// F_total in Newtons → m_supported in kg</span>
+    <span class="comment">// At default settings: ~28.3 N / 9.81 ≈ 2.88 kg per toe pad</span>
+  </div>
+
+  <p>
+    This represents the maximum mass that a single toe pad (at the configured area)
+    could support vertically, assuming all adhesion acts against gravity.
+    In practice, gecko adhesion is predominantly a <em>shear</em> force (parallel to the
+    surface) rather than a normal pull-off force, so load capacity in shear is
+    considerably higher than normal detachment force.
+  </p>
+
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2 id="s10">10 · Visualisation Parameters</h2>
+  <span class="sec-num">3D MODEL GEOMETRY CONSTANTS</span>
+
+  <table class="param-table">
+    <tr>
+      <th>Constant</th>
+      <th>Value</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td class="sym">SETA_PER_PAD</td>
+      <td class="range">2,400</td>
+      <td>Number of seta instances rendered per toe pad. Subsampled from biological 14,400/mm² for render performance.</td>
+    </tr>
+    <tr>
+      <td class="sym">SPATULA_AREA</td>
+      <td class="range">200 nm × 200 nm = 4×10⁻¹⁴ m²</td>
+      <td>Single spatula tip contact area. Fixed biological constant from TEM measurements.</td>
+    </tr>
+    <tr>
+      <td class="sym">STALK_LEN</td>
+      <td class="range">0.100 scene units</td>
+      <td>Rendered seta shaft height. Proportional to ~110 µm biological length at scene scale.</td>
+    </tr>
+    <tr>
+      <td class="sym">BRUSH_HALF</td>
+      <td class="range">0.015 scene units</td>
+      <td>Half-length of the spatula brush cone. Used to compute the brush centroid position when tilted at angle θ.</td>
+    </tr>
+    <tr>
+      <td class="sym">N_BRISTLES</td>
+      <td class="range">8 per seta</td>
+      <td>Number of rendered bristles per seta brush tip. Each splays outward at 38° from the stalk axis, arranged azimuthally.</td>
+    </tr>
+    <tr>
+      <td class="sym">SPREAD_ANGLE</td>
+      <td class="range">38°</td>
+      <td>Azimuthal spread angle of bristles in the brush tip geometry.</td>
+    </tr>
+    <tr>
+      <td class="sym">TOE_CFGS</td>
+      <td class="range">5 toes</td>
+      <td>Angular positions: ±1.10, ±0.50, 0.00 rad. Lengths: 0.78, 0.98, 1.12, 0.98, 0.78 (centre longest).</td>
+    </tr>
+    <tr>
+      <td class="sym">setae_count (render)</td>
+      <td class="range">density/20000 × SETA_PER_PAD</td>
+      <td>Visible instance count scales linearly with density slider. Maximum when density=20,000/mm².</td>
+    </tr>
+    <tr>
+      <td class="sym">foot lift (Y)</td>
+      <td class="range">0.008 + (d − 0.30) × 0.060</td>
+      <td>Vertical position of gecko foot rises as separation distance increases, visually representing the pad lifting from the surface.</td>
+    </tr>
+  </table>
+
+  <h3>Setae Colour Scheme</h3>
+  <p>
+    Seta stalks and brush tips are rendered in <strong>white</strong> (<code>#ffffff</code>)
+    at all states, matching the actual cream/white appearance of lamellae in gecko reference
+    photography. Emissive intensity scales with <code>η_total</code>:
+  </p>
+  <div class="formula-box">
+    stalk_emissive = 0.28 + η_total × 0.62
+    brush_emissive = 0.32 + (spatulae/1000) × 0.50 + η_total × 0.18
+    <span class="comment">// Higher efficiency = brighter glow indicating active vdW adhesion</span>
+  </div>
+
+
+  <!-- ══════════════════════════════════════════════ -->
+  <h2 id="s11">11 · Scientific References</h2>
+  <span class="sec-num">PRIMARY LITERATURE UNDERPINNING THE MODEL</span>
+
+  <div class="callout blue">
+    <div class="callout-title">Primary Sources</div>
+    <p style="margin-bottom:8px">
+      <strong>Autumn, K. et al. (2000)</strong> — <em>Nature</em> 405:681–685.<br>
+      First rigorous measurement of single seta force (~200 µN). Established van der Waals
+      mechanism. Measured 30° optimal contact angle. <em>This paper is the direct source for
+      the θ efficiency function and the 30° threshold used in the simulator.</em>
+    </p>
+    <p style="margin-bottom:8px">
+      <strong>Autumn, K. et al. (2002)</strong> — <em>PNAS</em> 99:12252–12256.<br>
+      Evidence of dry adhesion with no surface chemistry dependence. Confirmed Hamaker
+      constant range for β-keratin. Source of SPATULA_AREA = (200 nm)².
+    </p>
+    <p style="margin-bottom:8px">
+      <strong>Hansen, W.R. & Autumn, K. (2005)</strong> — <em>PNAS</em> 102:385–389.<br>
+      Measured ~5% simultaneous contact efficiency under natural conditions.
+      <em>Direct source for the default contact efficiency = 5% in the simulator.</em>
+    </p>
+    <p style="margin-bottom:8px">
+      <strong>Huber, G. et al. (2005)</strong> — <em>PNAS</em> 102:16293–16296.<br>
+      AFM measurement of individual spatula forces. Measured ~3–10 nN/spatula at 0.3 nm
+      separation. <em>Validates the Hamaker formula output at default settings.</em>
+    </p>
+    <p style="margin-bottom:0">
+      <strong>Irschick, D.J. et al. (1996)</strong> — <em>Biol J Linn Soc</em> 59:21–35.<br>
+      Whole-gecko adhesion measurements: ~133 N for a 4-foot Tokay at ~5% efficiency.
+      Used to validate the total-force output of the simulator at default settings.
+    </p>
+  </div>
+
+  <div class="ornament">· · · · ·</div>
+
+  <div class="doc-footer">
+    <span>GECKO ADHESION PHYSICS SIMULATOR — Mathematical Reference</span>
+    <span>Van der Waals · Hamaker · Autumn · Huber · Hansen</span>
+    <span>Tokay Gecko (<em>Gekko gecko</em>)</span>
+  </div>
+
+</div>
+</body>
+</html>
