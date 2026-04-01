@@ -31,8 +31,10 @@ body{font-family:'Space Mono',monospace;background:var(--bg);color:var(--text);h
 .state-label{font-family:'Syne',sans-serif;font-size:12px;font-weight:800;letter-spacing:2.8px;color:var(--accent);text-transform:uppercase;transition:color .4s}
 .state-eff{font-size:10.5px;color:var(--text-dim);font-style:italic}
 .top-actions{display:flex;gap:7px;flex-shrink:0}
-.top-btn{height:34px;padding:0 14px;border-radius:7px;background:rgba(255,255,255,.045);border:1px solid var(--border);color:var(--text-dim);font-family:'Space Mono',monospace;font-size:10.5px;cursor:pointer;transition:all .22s;white-space:nowrap}
+.top-btn{height:34px;padding:0 14px;border-radius:7px;background:rgba(255,255,255,.045);border:1px solid var(--border);color:var(--text-dim);font-family:'Space Mono',monospace;font-size:10.5px;cursor:pointer;transition:all .22s;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center}
 .top-btn:hover{background:var(--accent-bg);border-color:var(--accent-border);color:var(--accent)}
+.top-btn.ref-btn{background:rgba(0,232,122,.07);border-color:rgba(0,232,122,.25);color:rgba(0,232,122,.75)}
+.top-btn.ref-btn:hover{background:var(--accent);color:#080c1e;box-shadow:0 0 14px var(--accent-glow);border-color:var(--accent)}
 .workspace{flex:1;display:grid;grid-template-columns:318px 1fr 308px;min-height:0;overflow:hidden}
 .side{background:var(--panel-bg);overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;border-right:1px solid var(--border)}
 .side.right{border-right:none;border-left:1px solid var(--border)}
@@ -177,6 +179,7 @@ input[type=range]::-moz-range-thumb{width:17px;height:17px;border-radius:50%;bac
   <div class="brand"><span class="brand-name">GECKO ADHESION</span><span class="brand-sub">Van der Waals · Physics Lab</span></div>
   <div class="state-pill"><div class="state-dot"></div><span class="state-label" id="stateLabelBar">INSUFFICIENT</span><span class="state-eff" id="stateEffBar">eff. 0%</span></div>
   <div class="top-actions">
+    <a class="top-btn ref-btn" href="refgecko.html" target="_blank">📖 Reference</a>
     <button class="top-btn" onclick="resetSimulation()">↺ Reset</button>
     <button class="top-btn" onclick="printReport()">⎙ PDF</button>
   </div>
@@ -1042,7 +1045,6 @@ function setupListeners(){
 }
 
 function resetSimulation(){
-  // Changed default angle to 90 degrees so it resets straight down/detached
   const d={density:14400,spatulae:100,lamellae:18,padArea:100,angle:90,distance:0.30,hamaker:5.0,roughness:1,efficiency:5};
   Object.entries(d).forEach(([id,v])=>document.getElementById(id).value=v);
   updateSim();
@@ -1119,4 +1121,3 @@ window.addEventListener('beforeunload',()=>{ if(animFrameId)cancelAnimationFrame
 </script>
 </body>
 </html>
-
