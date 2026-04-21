@@ -76,6 +76,31 @@ nav { display: flex; justify-content: space-between; align-items: center; max-wi
 .stat:hover { transform:translateY(-4px); border-color:var(--primary); }
 .stat-label { color:rgba(255,255,255,.6); font-size:11px; margin-bottom:6px; display:block; text-transform:uppercase; letter-spacing:1.5px; }
 .stat-value { color:var(--primary); font-size:22px; font-weight:700; font-family:'Orbitron',sans-serif; }
+
+/* ── RESEARCH BUTTON STYLES ── */
+.research-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 24px;
+  padding: 14px 32px;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: var(--darker);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-decoration: none;
+  border-radius: 50px;
+  box-shadow: 0 10px 30px rgba(0,255,136,.3);
+  transition: all .3s ease;
+  text-transform: uppercase;
+}
+.research-btn:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 15px 40px rgba(0,255,136,.5);
+}
+
 .about { padding: 100px 40px; background: linear-gradient(180deg, rgba(10,22,40,.98), rgba(5,11,20,.98)); }
 .section-title {
   font-family: 'Orbitron', sans-serif; font-size: clamp(20px,4vw,44px);
@@ -218,6 +243,7 @@ footer { padding:28px 40px; background:rgba(5,11,20,.98); text-align:center; bor
       <li><a href="#home">Home</a></li>
       <li><a href="#model">Model</a></li>
       <li><a href="#team">Team</a></li>
+      <li><a href="ref.html">Research</a></li>
     </ul>
   </nav>
 </header>
@@ -238,6 +264,7 @@ footer { padding:28px 40px; background:rgba(5,11,20,.98); text-align:center; bor
           <div class="stat"><span class="stat-label">Satae per Foot</span><span class="stat-value">1-2 million</span></div>
           <div class="stat"><span class="stat-label">Support Capacity</span><span class="stat-value">20X Body weight</span></div>
         </div>
+        <a href="ref.html" class="research-btn">RESEARCH & DOCUMENTATION</a>
       </div>
     </div>
   </div>
@@ -323,7 +350,6 @@ footer { padding:28px 40px; background:rgba(5,11,20,.98); text-align:center; bor
   </div>
 </section>
 
-<!-- ── TEAM ── -->
 <section class="team-section" id="team">
   <h2 class="section-title">Research Team</h2>
   <div class="team-container">
@@ -364,11 +390,12 @@ footer { padding:28px 40px; background:rgba(5,11,20,.98); text-align:center; bor
   </div>
 </section>
 
-<!-- ── PRESENTATION ── -->
 <section class="download-section" id="download">
   <div class="download-card">
-    <h2>Technical Presentation</h2>
-    <p></p>
+    <h2>Technical Presentation & Research</h2>
+    <p>Access our comprehensive documentation and presentation materials.</p>
+    
+    <a href="ref.html" class="research-btn" style="margin-bottom: 30px; margin-top: 0;">RESEARCH & DOCUMENTATION</a>
 
     <div class="ppt-embed-wrapper">
       <iframe
@@ -440,7 +467,7 @@ hRend.setClearColor(0x000000,0);hRend.setSize(cont.clientWidth,cont.clientHeight
 cont.appendChild(hRend.domElement);
 hScene.add(new THREE.AmbientLight(0xffffff,1.2));
 const kl=new THREE.DirectionalLight(0xffffff,1.8);kl.position.set(10,15,10);hScene.add(kl);
-const fl=new THREE.DirectionalLight(0xffffff,0.6);fl.position.set(-10,5,-10);hScene.add(fl);
+const fl=new THREE.DirectionalLight(0xffffff,0.6);fl.position.set(-10,5,-10);hScene.add(rl);
 const rl=new THREE.PointLight(0xffffff,0.8,50);rl.position.set(0,5,-10);hScene.add(rl);
 const rg=new THREE.Group();hScene.add(rg);
 function frameCam(o){const b=new THREE.Box3().setFromObject(o);const s=b.getSize(new THREE.Vector3());const ty=b.min.y+s.y*.5;const md=Math.max(s.x,s.y,s.z);const fv=hCam.fov*Math.PI/180;const d=(md/(2*Math.tan(fv/2)))*44;hCam.position.set(0,ty,d);hCam.lookAt(0,ty,0);hCam.near=d/100;hCam.far=d*100;hCam.updateProjectionMatrix();}
