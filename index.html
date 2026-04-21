@@ -382,8 +382,7 @@ footer { padding:28px 40px; background:rgba(5,11,20,.98); text-align:center; bor
           <img src="tanmaykk.jpeg" alt="Tanmay Kapil Kadam">
         </div>
         <h3>TANMAY KAPIL KADAM</h3>
-        <p class="team-role">Roll No: I033 <br>SAP ID : 70412500009 <br>
-        </p>
+        <p class="team-role">Roll No: I033 <br>SAP ID : 70412500009 <br></p>
         <p class="team-div">DIV A</p>
       </div>
     </div>
@@ -468,7 +467,7 @@ hRend.setClearColor(0x000000,0);hRend.setSize(cont.clientWidth,cont.clientHeight
 cont.appendChild(hRend.domElement);
 hScene.add(new THREE.AmbientLight(0xffffff,1.2));
 const kl=new THREE.DirectionalLight(0xffffff,1.8);kl.position.set(10,15,10);hScene.add(kl);
-const fl=new THREE.DirectionalLight(0xffffff,0.6);fl.position.set(-10,5,-10);hScene.add(rl);
+const fl=new THREE.DirectionalLight(0xffffff,0.6);fl.position.set(-10,5,-10);hScene.add(fl);
 const rl=new THREE.PointLight(0xffffff,0.8,50);rl.position.set(0,5,-10);hScene.add(rl);
 const rg=new THREE.Group();hScene.add(rg);
 function frameCam(o){const b=new THREE.Box3().setFromObject(o);const s=b.getSize(new THREE.Vector3());const ty=b.min.y+s.y*.5;const md=Math.max(s.x,s.y,s.z);const fv=hCam.fov*Math.PI/180;const d=(md/(2*Math.tan(fv/2)))*44;hCam.position.set(0,ty,d);hCam.lookAt(0,ty,0);hCam.near=d/100;hCam.far=d*100;hCam.updateProjectionMatrix();}
